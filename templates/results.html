@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+
+{% block title %}AGBOT - Analysis Results{% endblock %}
+
+{% block content %}
+<div class="results-page">
+    <div class="results-header">
+        <button class="back-button" onclick="window.location.href='{{ url_for('index') }}'">
+            <i class="fas fa-arrow-left"></i>
+        </button>
+        <h1>Analysis Results</h1>
+    </div>
+
+    <div class="results-container">
+        <!-- Image and Status -->
+        <div class="result-image-section">
+            <img src="{{ url_for('static', filename='uploads/latest_scan.jpg') }}" alt="Analyzed plant" 
+                 onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 400 300%22%3E%3Crect fill=%22%23f0f0f0%22 width=%22400%22 height=%22300%22/%3E%3Ctext x=%22200%22 y=%22150%22 text-anchor=%22middle%22 font-family=%22Arial%22 font-size=%2224%22 fill=%22%23999%22%3EPlant Image%3C/text%3E%3C/svg%3E'">
+            
+            <div class="scan-timestamp">
+                <i class="far fa-clock"></i> Plant Health Status
+                <br>{{ timestamp }}
+            </div>
+        </div>
+
+        <!-- Confidence Level -->
+        <div class="confidence-section">
+            <div class="confidence-bar">
+                <div class="confidence-fill" style="width: {{ result.confidence }}%"></div>
+            </div>
+            <div class="confidence-text">
+                Confidence Level: {{ result.confidence }}%
+            </div>
+        </div>
+
+        <!-- Status -->
+        <div class="status-section {{ 'healthy' if result.status == 'Healthy' else 'damaged' }}">
+            <div class="status-label">Status</div>
+            <div class="status-value">{{ result.status }}</div>
+        </div>
+
+        {% if result.pest_identified and result.pest_identified != 'None' %}
+        <!-- Pest Identification -->
+        <div class="identification-section">
+            <div class="pest-icon">
+                <i class="fas fa-bug"></i>
+            </div>
+            <div class="pest-info">
+                <h2>Pest Identified</h2>
+                <h3>{{ result.pest_identified }}</h3>
+                <p class="scientific-name">({{ result.pest_scientific }})</p>
+            </div>
+        </div>
+
+        <!-- Damage Pattern -->
+        <div class="damage-section">
+            <h3>Damage Pattern</h3>
+            <p>{{ result.damage_pattern }}</p>
+        </div>
+
+        <!-- Treatment Recommendations -->
+        <div class="treatment-section">
+            <div class="treatment-tabs">
+                <button class="tab-button active" data-tab="immediate">
+                    <i class="fas fa-exclamation-circle"></i> Immediate Action
+                </button>
+                <button class="tab-button" data-tab="ipm">
+                    <i class="fas fa-shield-alt"></i> IPM Treatment
+                </button>
+                <button class="tab-button" data-tab="prevention">
+                    <i class="fas fa-hand-paper"></i> Prevention
+                </button>
+            </div>
+
+            <div class="treatment-content">
+                <div class="tab-content active" id="immediate">
+                    <h3>Immediate Action</h3>
+                    <ul>
+                        {% for action in result.treatments.immediate %}
+                        <li>{{ action }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+
+                <div class="tab-content" id="ipm">
+                    <h3>IPM Treatment</h3>
+                    <ul>
+                        {% for treatment in result.treatments.ipm %}
+                        <li>{{ treatment }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+
+                <div class="tab-content" id="prevention">
+                    <h3>Prevention</h3>
+                    <ul>
+                        {% for prevention in result.treatments.prevention %}
+                        <li>{{ prevention }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <!-- Healthy Plant Message -->
+        <div class="healthy-message">
+            <div class="healthy-icon">
+                <i class="fas fa-check-circle"></i>
+            </div>
+            <h2>Great News!</h2>
+            <p>{{ result.message }}</p>
+            <div class="healthy-tips">
+                <h3>Keep Your Plants Healthy</h3>
+                <ul>
+                    <li>Continue regular monitoring</li>
+                    <li>Maintain proper watering schedule</li>
+                    <li>Ensure adequate sunlight</li>
+                    <li>Check neighboring plants for early signs</li>
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Action Buttons -->
+        <div class="action-buttons">
+            <button class="share-button">
+                <i class="fas fa-share-alt"></i> Share
+            </button>
+            <button class="save-button">
+                <i class="fas fa-save"></i> Save Report
+            </button>
+        </div>
+
+        <!-- Disclaimer -->
+        <div class="disclaimer">
+            <p><strong>Disclaimer:</strong> These recommendations are based on AI analysis and should be used alongside professional agricultural advice. Always follow local IPM guidelines and regulations.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Tab functionality
+document.querySelectorAll('.tab-button').forEach(button => {
+    button.addEventListener('click', () => {
+        // Remove active class from all tabs and contents
+        document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+        
+        // Add active class to clicked tab and corresponding content
+        button.classList.add('active');
+        const tabId = button.getAttribute('data-tab');
+        document.getElementById(tabId).classList.add('active');
+    });
+});
+
+// Share functionality
+document.querySelector('.share-button').addEventListener('click', () => {
+    if (navigator.share) {
+        navigator.share({
+            title: 'AGBOT Analysis Results',
+            text: 'Plant health analysis results from AGBOT',
+            url: window.location.href
+        });
+    } else {
+        alert('Sharing is not supported on this device');
+    }
+});
+
+// Save report functionality
+document.querySelector('.save-button').addEventListener('click', () => {
+    alert('Report saved successfully!');
+});
+</script>
+{% endblock %}

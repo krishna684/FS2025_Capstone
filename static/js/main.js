@@ -8,12 +8,15 @@ document.addEventListener('DOMContentLoaded', function() {
 function initializeApp() {
     // Add smooth scrolling
     addSmoothScrolling();
-    
+
     // Initialize notification badge
     initializeNotifications();
-    
+
     // Add export functionality
     initializeExportButtons();
+
+    // Initialize floating action button
+    initializeFAB();
 }
 
 // Smooth scrolling for anchor links
@@ -130,12 +133,43 @@ function showToast(message, type = 'info') {
     }, 3000);
 }
 
+// Floating Action Button
+function initializeFAB() {
+    const fabButton = document.getElementById('fabButton');
+    const fabMenu = document.getElementById('fabMenu');
+
+    if (!fabButton || !fabMenu) return;
+
+    fabButton.addEventListener('click', function(e) {
+        e.stopPropagation();
+        fabButton.classList.toggle('active');
+        fabMenu.classList.toggle('active');
+    });
+
+    // Close FAB menu when clicking outside
+    document.addEventListener('click', function(e) {
+        if (!fabButton.contains(e.target) && !fabMenu.contains(e.target)) {
+            fabButton.classList.remove('active');
+            fabMenu.classList.remove('active');
+        }
+    });
+
+    // Close FAB menu when a menu item is clicked
+    const fabMenuItems = fabMenu.querySelectorAll('.fab-menu-item');
+    fabMenuItems.forEach(item => {
+        item.addEventListener('click', function() {
+            fabButton.classList.remove('active');
+            fabMenu.classList.remove('active');
+        });
+    });
+}
+
 // Add toast styles dynamically
 const style = document.createElement('style');
 style.textContent = `
     .toast {
         position: fixed;
-        bottom: 20px;
+        bottom: 90px;
         right: 20px;
         padding: 1rem 1.5rem;
         background: #333;
@@ -146,12 +180,12 @@ style.textContent = `
         transition: all 0.3s ease;
         z-index: 3000;
     }
-    
+
     .toast.show {
         transform: translateY(0);
         opacity: 1;
     }
-    
+
     .toast-success { background: #16a34a; }
     .toast-error { background: #ef4444; }
     .toast-warning { background: #fbbf24; color: #333; }

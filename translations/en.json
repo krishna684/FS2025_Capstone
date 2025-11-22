@@ -1,0 +1,127 @@
+{
+  "brand": {
+    "name": "AGBOT",
+    "tagline": "From Data to Harvest - Smarter Solutions for Farmers"
+  },
+  "nav": {
+    "home": "Home",
+    "scan": "Scan",
+    "history": "History",
+    "about": "About",
+    "settings": "Settings",
+    "logout": "Logout"
+  },
+  "login": {
+    "title": "Welcome Back",
+    "subtitle": "Sign in to continue to AGBOT",
+    "email": "Email or Phone",
+    "password": "Password",
+    "remember": "Remember me",
+    "forgot": "Forgot password?",
+    "signin": "Sign In",
+    "or": "OR",
+    "google": "Continue with Google",
+    "microsoft": "Continue with Microsoft",
+    "noaccount": "Don't have an account?",
+    "signup": "Sign up"
+  },
+  "register": {
+    "title": "Create Account",
+    "subtitle": "Join AGBOT today",
+    "fullname": "Full Name",
+    "email": "Email Address",
+    "phone": "Phone Number",
+    "location": "Location",
+    "password": "Password",
+    "confirm": "Confirm Password",
+    "terms": "I agree to the Terms of Service and Privacy Policy",
+    "create": "Create Account",
+    "cancel": "Cancel",
+    "google": "Sign up with Google",
+    "microsoft": "Sign up with Microsoft",
+    "hasaccount": "Already have an account?",
+    "signin": "Sign in"
+  },
+  "home": {
+    "welcome": "Welcome back",
+    "quickscan": "Quick Scan",
+    "scandesc": "Upload or capture an image to detect pests",
+    "startscanning": "Start Scanning",
+    "recentscans": "Recent Scans",
+    "viewall": "View All",
+    "stats": {
+      "total": "Total Scans",
+      "healthy": "Healthy",
+      "detected": "Pests Detected",
+      "accuracy": "AI Accuracy"
+    }
+  },
+  "scan": {
+    "title": "Scan Plant",
+    "upload": "Upload Image",
+    "camera": "Use Camera",
+    "dragdrop": "Drag and drop an image here, or click to select",
+    "analyzing": "Analyzing...",
+    "processing": "Processing image",
+    "cancel": "Cancel"
+  },
+  "history": {
+    "title": "Scan History",
+    "recent": "Recent Scans",
+    "filter": "Filter",
+    "status": "Status",
+    "allstatus": "All Status",
+    "healthy": "Healthy",
+    "mild": "Mild",
+    "moderate": "Moderate",
+    "severe": "Severe",
+    "daterange": "Date Range",
+    "alltime": "All Time",
+    "today": "Today",
+    "week": "Last 7 Days",
+    "month": "Last 30 Days",
+    "search": "Search",
+    "searchby": "Search by plant or pest...",
+    "clearfilters": "Clear Filters",
+    "export": "Export",
+    "csv": "Export CSV",
+    "json": "Export JSON",
+    "pdf": "Export PDF"
+  },
+  "settings": {
+    "title": "Settings",
+    "profile": "Profile",
+    "preferences": "Preferences",
+    "notifications": "Notifications",
+    "security": "Security",
+    "language": "Language",
+    "theme": "Theme",
+    "units": "Units",
+    "metric": "Metric",
+    "imperial": "Imperial",
+    "save": "Save Changes",
+    "cancel": "Cancel"
+  },
+  "results": {
+    "detected": "Pest Detected",
+    "confidence": "Confidence",
+    "severity": "Severity",
+    "treatment": "Treatment",
+    "prevention": "Prevention",
+    "share": "Share",
+    "save": "Save",
+    "newscan": "New Scan"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "warning": "Warning",
+    "info": "Info",
+    "close": "Close",
+    "delete": "Delete",
+    "edit": "Edit",
+    "view": "View",
+    "details": "Details"
+  }
+}

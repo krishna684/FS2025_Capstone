@@ -1,4 +1,5 @@
-from flask import Flask, render_template, jsonify, request, redirect, url_for, session
+from flask import Flask, render_template, jsonify, request, redirect, url_for, session, flash
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from datetime import datetime, timedelta
 import random
 import base64
@@ -7,9 +8,57 @@ from PIL import Image
 import json
 import os
 from werkzeug.utils import secure_filename
+from models import db, User, Scan, Feedback, PestDatabase
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-here'  # Change this in production
+
+# Database configuration
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///agbot.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['JWT_SECRET_KEY'] = 'your-jwt-secret-key'  # Change in production
+
+# Initialize extensions
+db.init_app(app)
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+
+# Load translations
+translations = {}
+for lang in ['en', 'es', 'hi', 'sw']:
+    try:
+        with open(f'translations/{lang}.json', 'r', encoding='utf-8') as f:
+            translations[lang] = json.load(f)
+    except FileNotFoundError:
+        print(f"Warning: Translation file for {lang} not found")
+        translations[lang] = {}
+
+@login_manager.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+# Helper function for translations
+def get_translation(key, lang='en'):
+    keys = key.split('.')
+    value = translations.get(lang, translations['en'])
+    for k in keys:
+        value = value.get(k, key)
+    return value
+
+# Context processor to inject language and translations into all templates
+@app.context_processor
+def inject_translations():
+    # Get language from user settings, session, or default to 'en'
+    if current_user.is_authenticated:
+        lang = current_user.language
+    else:
+        lang = session.get('language', request.args.get('lang', 'en'))
+
+    # Get translations for the current language
+    trans = translations.get(lang, translations['en'])
+
+    return dict(lang=lang, t=trans)
 
 # Configuration
 UPLOAD_FOLDER = 'static/uploads'
@@ -75,7 +124,205 @@ pest_trends = {
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+# Authentication routes
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+
+    # Get language from query parameter and store in session
+    if request.args.get('lang'):
+        session['language'] = request.args.get('lang')
+
+    if request.method == 'POST':
+        email = request.form.get('email')
+        password = request.form.get('password')
+        remember = request.form.get('remember') == 'on'
+
+        user = User.query.filter((User.email == email) | (User.phone == email)).first()
+
+        if user and user.check_password(password):
+            login_user(user, remember=remember)
+            user.last_login = datetime.utcnow()
+            db.session.commit()
+
+            next_page = request.args.get('next')
+            return redirect(next_page if next_page else url_for('index'))
+        else:
+            flash('Invalid email/phone or password', 'danger')
+
+    return render_template('login.html')
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+
+    # Get language from query parameter and store in session
+    if request.args.get('lang'):
+        session['language'] = request.args.get('lang')
+
+    if request.method == 'POST':
+        name = request.form.get('name')
+        email = request.form.get('email')
+        phone = request.form.get('phone')
+        location = request.form.get('location')
+        password = request.form.get('password')
+
+        # Check if user exists
+        if User.query.filter_by(email=email).first():
+            flash('Email already registered', 'danger')
+            return redirect(url_for('register'))
+
+        # Create new user
+        user = User(name=name, email=email, phone=phone, location=location)
+        user.set_password(password)
+
+        db.session.add(user)
+        db.session.commit()
+
+        flash('Account created successfully! Please log in.', 'success')
+        return redirect(url_for('login'))
+
+    return render_template('register.html')
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('login'))
+
+@app.route('/settings')
+@login_required
+def settings():
+    return render_template('settings.html')
+
+@app.route('/update_profile', methods=['POST'])
+@login_required
+def update_profile():
+    current_user.name = request.form.get('name')
+    current_user.phone = request.form.get('phone')
+    current_user.location = request.form.get('location')
+    current_user.farm_name = request.form.get('farm_name')
+    current_user.farm_size = request.form.get('farm_size')
+
+    # Handle crops as comma-separated values
+    crops = request.form.getlist('crops')
+    current_user.crops = ','.join(crops) if crops else None
+
+    db.session.commit()
+    flash('Profile updated successfully', 'success')
+    return redirect(url_for('settings'))
+
+@app.route('/update_preferences', methods=['POST'])
+@login_required
+def update_preferences():
+    current_user.language = request.form.get('language')
+    current_user.units = request.form.get('units')
+    current_user.theme = request.form.get('theme')
+    db.session.commit()
+    flash('Preferences updated successfully', 'success')
+    return redirect(url_for('settings'))
+
+@app.route('/update_notifications', methods=['POST'])
+@login_required
+def update_notifications():
+    # Email notifications - convert checkbox presence to boolean
+    current_user.notification_email = 'email_notifications' in request.form
+    current_user.notification_push = 'push_notifications' in request.form
+    db.session.commit()
+    flash('Notification preferences updated successfully', 'success')
+    return redirect(url_for('settings'))
+
+@app.route('/update_security', methods=['POST'])
+@login_required
+def update_security():
+    current_password = request.form.get('current_password')
+    new_password = request.form.get('new_password')
+    confirm_password = request.form.get('confirm_new_password')
+
+    # Verify current password
+    if not current_user.check_password(current_password):
+        flash('Current password is incorrect', 'danger')
+        return redirect(url_for('settings'))
+
+    # Verify new passwords match
+    if new_password != confirm_password:
+        flash('New passwords do not match', 'danger')
+        return redirect(url_for('settings'))
+
+    # Update password
+    current_user.set_password(new_password)
+    db.session.commit()
+    flash('Password updated successfully', 'success')
+    return redirect(url_for('settings'))
+
+@app.route('/forgot_password')
+def forgot_password():
+    # Placeholder for password reset functionality
+    return render_template('login.html')
+
+@app.route('/oauth_login/<provider>')
+def oauth_login(provider):
+    # Placeholder for OAuth login
+    flash(f'{provider.capitalize()} OAuth not yet configured', 'warning')
+    return redirect(url_for('login'))
+
+# API endpoint for feedback
+@app.route('/api/feedback', methods=['POST'])
+@login_required
+def submit_feedback():
+    data = request.get_json()
+
+    feedback = Feedback(
+        user_id=current_user.id,
+        scan_id=data.get('scan_id'),
+        is_correct=data.get('is_correct'),
+        actual_pest_name=data.get('actual_pest_name'),
+        notes=data.get('notes')
+    )
+
+    db.session.add(feedback)
+    db.session.commit()
+
+    return jsonify({'message': 'Feedback saved successfully'}), 200
+
+# Get common pests for feedback dropdown
+@app.route('/api/pests')
+def get_pests():
+    lang = request.args.get('lang', 'en')
+    pests = PestDatabase.query.all()
+    return jsonify([pest.to_dict(lang) for pest in pests])
+
+# Export API endpoints
+@app.route('/api/export/scans')
+@login_required
+def export_scans():
+    scans = Scan.query.filter_by(user_id=current_user.id).order_by(Scan.created_at.desc()).all()
+    scans_data = [scan.to_dict() for scan in scans]
+
+    export_format = request.args.get('format', 'json')
+
+    if export_format == 'json':
+        return jsonify(scans_data)
+    elif export_format == 'csv':
+        # For CSV, we'll return JSON and let the frontend handle it
+        return jsonify(scans_data)
+    else:
+        return jsonify({'error': 'Unsupported format'}), 400
+
+@app.route('/api/export/profile')
+@login_required
+def export_profile():
+    profile_data = {
+        'user': current_user.to_dict(),
+        'total_scans': Scan.query.filter_by(user_id=current_user.id).count(),
+        'exported_at': datetime.utcnow().isoformat()
+    }
+    return jsonify(profile_data)
+
 @app.route('/')
+@login_required
 def index():
     # Calculate weekly change
     weekly_change = '+12% this week'
@@ -328,4 +575,56 @@ def get_stats():
     })
 
 if __name__ == '__main__':
+    # Initialize database
+    with app.app_context():
+        db.create_all()
+
+        # Add sample pests if database is empty
+        if PestDatabase.query.count() == 0:
+            pests = [
+                PestDatabase(
+                    common_name='Japanese Beetle',
+                    scientific_name='Popillia japonica',
+                    category='insect',
+                    name_es='Escarabajo Japonés',
+                    name_hi='जापानी बीटल',
+                    name_sw='Mdudu wa Kijapani'
+                ),
+                PestDatabase(
+                    common_name='Aphids',
+                    scientific_name='Aphidoidea',
+                    category='insect',
+                    name_es='Pulgones',
+                    name_hi='एफिड्स',
+                    name_sw='Dudu wa Majani'
+                ),
+                PestDatabase(
+                    common_name='Spider Mites',
+                    scientific_name='Tetranychidae',
+                    category='insect',
+                    name_es='Ácaros',
+                    name_hi='मकड़ी के कण',
+                    name_sw='Panya wa Utando'
+                ),
+                PestDatabase(
+                    common_name='Cabbage Worm',
+                    scientific_name='Pieris rapae',
+                    category='insect',
+                    name_es='Gusano de la col',
+                    name_hi='पत्ता गोभी का कीड़ा',
+                    name_sw='Funza la Kabichi'
+                ),
+                PestDatabase(
+                    common_name='Whiteflies',
+                    scientific_name='Aleyrodidae',
+                    category='insect',
+                    name_es='Moscas blancas',
+                    name_hi='सफेद मक्खियाँ',
+                    name_sw='Nzi Weupe'
+                ),
+            ]
+            db.session.add_all(pests)
+            db.session.commit()
+            print("Database initialized with sample pests")
+
     app.run(debug=True, host='0.0.0.0', port=5001)

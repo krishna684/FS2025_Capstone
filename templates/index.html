@@ -3,6 +3,53 @@
 {% block title %}AGBOT - Dashboard{% endblock %}
 
 {% block content %}
+<style>
+@media (max-width: 768px) {
+    .content {
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    .dashboard {
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+
+    .welcome-banner {
+        margin: 0 !important;
+        margin-bottom: 0 !important;
+        border-radius: 0 !important;
+        position: relative !important;
+        top: 0 !important;
+    }
+
+    .stats-grid {
+        padding: 0.5rem !important;
+        margin: 0 !important;
+        width: 100% !important;
+        gap: 0.5rem !important;
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+    }
+
+    .stat-card {
+        border-radius: 0.5rem !important;
+        padding: 0.75rem !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    .dashboard-content {
+        padding: 0.5rem !important;
+        margin: 0 !important;
+    }
+
+    .card {
+        border-radius: 0.5rem !important;
+        margin: 0 0 0.5rem 0 !important;
+    }
+}
+</style>
 <div class="dashboard">
     <!-- Welcome Banner -->
     <div class="welcome-banner">

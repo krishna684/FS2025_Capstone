@@ -49,6 +49,20 @@ body {
     padding: 0;
 }
 
+/* Prevent rotation on mobile devices */
+@media screen and (max-width: 768px) and (orientation: landscape) {
+    html {
+        transform: rotate(-90deg);
+        transform-origin: left top;
+        width: 100vh;
+        height: 100vw;
+        overflow-x: hidden;
+        position: absolute;
+        top: 100%;
+        left: 0;
+    }
+}
+
 /* Navigation */
 .navbar {
     background: var(--card-bg);
@@ -1929,7 +1943,7 @@ button.fab-menu-item {
     }
 
     .nav-container {
-        padding: 0.75rem 1rem;
+        padding: 0.75rem 0;
     }
 
     /* Hide navigation menu on mobile, show only logo */
@@ -2023,7 +2037,7 @@ button.fab-menu-item {
     }
 
     .nav-container {
-        padding: 0.5rem 0.75rem;
+        padding: 0.5rem 0;
     }
 
     .banner-content h1 {
@@ -2052,13 +2066,9 @@ button.fab-menu-item {
         width: 100%;
     }
 
-    .content {
-        padding: 0.5rem;
-    }
-
     .welcome-banner {
         padding: 1rem;
-        border-radius: 0.75rem;
+        border-radius: 0;
     }
 
     .stat-icon {

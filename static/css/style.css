@@ -210,6 +210,10 @@ body {
     .notifications {
         display: none;
     }
+
+    .theme-toggle {
+        display: none;
+    }
 }
 
 /* Content */
@@ -439,6 +443,16 @@ body {
     overflow-x: hidden;
 }
 
+/* Make welcome banner sticky on mobile */
+@media (max-width: 768px) {
+    .welcome-banner {
+        position: sticky;
+        top: 55px; /* Below the navbar */
+        z-index: 999;
+        margin-bottom: 1rem;
+    }
+}
+
 /* Dashboard Content */
 .dashboard-content {
     display: grid;
@@ -633,7 +647,7 @@ body {
     padding: 0.75rem 1rem;
     border: 1px solid var(--border-color);
     border-radius: 0.5rem;
-    background: white;
+    background: var(--card-bg);
     color: var(--text-primary);
     text-decoration: none;
     display: flex;
@@ -1852,27 +1866,45 @@ body {
     text-align: center;
 }
 
+.fab-menu-divider {
+    height: 1px;
+    background: var(--border-color);
+    margin: 0.5rem 0;
+}
+
+.fab-badge {
+    margin-left: auto;
+    background: var(--danger);
+    color: white;
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    border-radius: 50%;
+    font-weight: 600;
+}
+
+button.fab-menu-item {
+    width: 100%;
+    border: none;
+    background: none;
+    text-align: left;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: inherit;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .fab-container {
         display: block;
     }
+
     .nav-container {
-        padding: 1rem;
+        padding: 0.75rem 1rem;
     }
 
+    /* Hide navigation menu on mobile, show only logo */
     .nav-menu {
-        gap: 0.5rem;
-        font-size: 0.875rem;
-    }
-
-    .nav-item {
-        padding: 0.5rem 0.75rem;
-        font-size: 0;
-    }
-
-    .nav-item i {
-        font-size: 1.125rem;
+        display: none;
     }
 
     .nav-user {
@@ -1955,17 +1987,13 @@ body {
         font-size: 0.875rem;
     }
 
+    /* Hide navigation menu completely on phone */
     .nav-menu {
-        gap: 0.25rem;
+        display: none;
     }
 
-    .nav-item {
-        padding: 0.5rem;
-        font-size: 0;
-    }
-
-    .nav-item i {
-        font-size: 1rem;
+    .nav-container {
+        padding: 0.5rem 0.75rem;
     }
 
     .banner-content h1 {
@@ -1995,7 +2023,7 @@ body {
     }
 
     .content {
-        padding: 0.75rem;
+        padding: 0.5rem;
     }
 
     .welcome-banner {
@@ -2020,4 +2048,79 @@ body {
     .stat-change {
         font-size: 0.6rem;
     }
+}
+
+/* User Dropdown Menu */
+.user-dropdown {
+    position: relative;
+}
+
+.user-profile {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    transition: background 0.2s;
+}
+
+.user-profile:hover {
+    background: var(--background);
+}
+
+.user-profile i.fa-chevron-down {
+    font-size: 0.75rem;
+    transition: transform 0.3s;
+}
+
+.user-menu.show .user-profile i.fa-chevron-down {
+    transform: rotate(180deg);
+}
+
+.user-menu {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    right: 0;
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 0.75rem;
+    box-shadow: 0 4px 12px var(--shadow);
+    min-width: 200px;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.3s;
+    z-index: 1001;
+}
+
+.user-menu.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.user-menu a {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.875rem 1.25rem;
+    color: var(--text-primary);
+    text-decoration: none;
+    transition: all 0.2s;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.user-menu a:last-child {
+    border-bottom: none;
+}
+
+.user-menu a:hover {
+    background: var(--background);
+    color: var(--primary-color);
+}
+
+.user-menu a i {
+    width: 1.25rem;
+    text-align: center;
 }

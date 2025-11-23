@@ -385,6 +385,18 @@
     padding: 2rem 1rem;
 }
 
+@media (max-width: 768px) {
+    .settings-page {
+        padding: 1rem 0.75rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .settings-page {
+        padding: 0.75rem 0.5rem;
+    }
+}
+
 .settings-header {
     display: flex;
     align-items: center;
@@ -460,6 +472,19 @@
     border-radius: 1rem;
     padding: 2rem;
     box-shadow: 0 2px 8px var(--shadow);
+}
+
+@media (max-width: 768px) {
+    .settings-section {
+        padding: 1.5rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .settings-section {
+        padding: 1rem;
+        border-radius: 0.75rem;
+    }
 }
 
 .settings-section h2 {
@@ -757,6 +782,11 @@
 @media (max-width: 768px) {
     .settings-tabs {
         grid-template-columns: 1fr;
+        gap: 0.75rem;
+    }
+
+    .settings-tab {
+        padding: 0.875rem;
     }
 
     .form-row {
@@ -770,6 +800,34 @@
     .btn-primary, .btn-secondary, .btn-danger {
         width: 100%;
         justify-content: center;
+    }
+
+    .settings-header {
+        padding-bottom: 1rem;
+        margin-bottom: 1.5rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .settings-tabs {
+        gap: 0.5rem;
+    }
+
+    .settings-tab {
+        padding: 0.75rem;
+        font-size: 0.875rem;
+    }
+
+    .settings-tab i {
+        font-size: 1rem;
+    }
+
+    .settings-section h2 {
+        font-size: 1.25rem;
+    }
+
+    .settings-subsection h3 {
+        font-size: 1rem;
     }
 }
 </style>
@@ -836,5 +894,38 @@ function addCustomCrop() {
 function removeCustomCrop(button) {
     button.closest('.custom-crop-item').remove();
 }
+
+// Load saved crops on page load
+document.addEventListener('DOMContentLoaded', function() {
+    // Get saved crops from server (if any)
+    const savedCrops = '{{ current_user.crops or "" }}'.split(',').filter(c => c.trim());
+
+    // Check predefined crops
+    document.querySelectorAll('input[name="crops"]').forEach(checkbox => {
+        if (savedCrops.includes(checkbox.value)) {
+            checkbox.checked = true;
+        }
+    });
+
+    // Add custom crops (those not in predefined list)
+    const predefinedCrops = ['corn', 'soybean', 'wheat', 'rice', 'cotton', 'tomato'];
+    const customCrops = savedCrops.filter(crop => !predefinedCrops.includes(crop));
+
+    const container = document.getElementById('customCropsContainer');
+    customCrops.forEach(cropName => {
+        if (cropName) {
+            const cropLabel = document.createElement('label');
+            cropLabel.className = 'checkbox-label custom-crop-item';
+            cropLabel.innerHTML = `
+                <input type="checkbox" name="crops" value="${cropName}" checked>
+                ${cropName}
+                <button type="button" class="remove-crop" onclick="removeCustomCrop(this)" title="Remove">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            container.appendChild(cropLabel);
+        }
+    });
+});
 </script>
 {% endblock %}

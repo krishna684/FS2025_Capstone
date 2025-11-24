@@ -224,6 +224,24 @@ def update_preferences():
     flash('Preferences updated successfully', 'success')
     return redirect(url_for('settings'))
 
+@app.route('/api/update_theme', methods=['POST'])
+@login_required
+def update_theme():
+    data = request.get_json()
+    theme = data.get('theme', 'light')
+    current_user.theme = theme
+    db.session.commit()
+    return jsonify({'message': 'Theme updated successfully'}), 200
+
+@app.route('/api/update_language', methods=['POST'])
+@login_required
+def update_language():
+    data = request.get_json()
+    language = data.get('language', 'en')
+    current_user.language = language
+    db.session.commit()
+    return jsonify({'message': 'Language updated successfully'}), 200
+
 @app.route('/update_notifications', methods=['POST'])
 @login_required
 def update_notifications():

@@ -157,8 +157,8 @@ function initializeFAB() {
         }
     });
 
-    // Close FAB menu when a menu item is clicked
-    const fabMenuItems = fabMenu.querySelectorAll('.fab-menu-item');
+    // Close FAB menu when a menu item is clicked (except theme toggle and notifications)
+    const fabMenuItems = fabMenu.querySelectorAll('.fab-menu-item:not(.fab-theme-toggle):not(.fab-notifications)');
     fabMenuItems.forEach(item => {
         item.addEventListener('click', function() {
             fabButton.classList.remove('active');
@@ -170,34 +170,81 @@ function initializeFAB() {
 // Theme Toggle
 function initializeThemeToggle() {
     const themeToggle = document.getElementById('themeToggle');
-    if (!themeToggle) return;
+    const fabThemeToggle = document.getElementById('fabThemeToggle');
 
     // Check for saved theme preference or default to 'light'
     const currentTheme = localStorage.getItem('theme') || 'light';
     document.documentElement.setAttribute('data-theme', currentTheme);
     updateThemeIcon(currentTheme);
 
-    themeToggle.addEventListener('click', function() {
-        const currentTheme = document.documentElement.getAttribute('data-theme');
-        const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    // Navbar theme toggle
+    if (themeToggle) {
+        themeToggle.addEventListener('click', function() {
+            toggleTheme();
+        });
+    }
 
-        document.documentElement.setAttribute('data-theme', newTheme);
-        localStorage.setItem('theme', newTheme);
-        updateThemeIcon(newTheme);
-    });
+    // FAB theme toggle
+    if (fabThemeToggle) {
+        fabThemeToggle.addEventListener('click', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            toggleTheme();
+        });
+    }
+}
+
+function toggleTheme() {
+    const currentTheme = document.documentElement.getAttribute('data-theme');
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+    updateThemeIcon(newTheme);
+
+    // Update theme in database if user is logged in
+    fetch('/api/update_theme', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ theme: newTheme })
+    }).catch(err => console.log('Theme preference not saved to server'));
 }
 
 function updateThemeIcon(theme) {
     const themeToggle = document.getElementById('themeToggle');
-    if (!themeToggle) return;
+    const fabThemeToggle = document.getElementById('fabThemeToggle');
 
-    const icon = themeToggle.querySelector('i');
-    if (theme === 'dark') {
-        icon.classList.remove('fa-moon');
-        icon.classList.add('fa-sun');
-    } else {
-        icon.classList.remove('fa-sun');
-        icon.classList.add('fa-moon');
+    // Update navbar theme toggle icon
+    if (themeToggle) {
+        const icon = themeToggle.querySelector('i');
+        if (icon) {
+            if (theme === 'dark') {
+                icon.classList.remove('fa-moon');
+                icon.classList.add('fa-sun');
+            } else {
+                icon.classList.remove('fa-sun');
+                icon.classList.add('fa-moon');
+            }
+        }
+    }
+
+    // Update FAB theme toggle icon and text
+    if (fabThemeToggle) {
+        const icon = fabThemeToggle.querySelector('i');
+        const span = fabThemeToggle.querySelector('span');
+        if (icon && span) {
+            if (theme === 'dark') {
+                icon.classList.remove('fa-moon');
+                icon.classList.add('fa-sun');
+                span.textContent = 'Light Mode';
+            } else {
+                icon.classList.remove('fa-sun');
+                icon.classList.add('fa-moon');
+                span.textContent = 'Dark Mode';
+            }
+        }
     }
 }
 

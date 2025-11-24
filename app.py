@@ -50,15 +50,34 @@ def get_translation(key, lang='en'):
 @app.context_processor
 def inject_translations():
     # Get language from user settings, session, or default to 'en'
-    if current_user.is_authenticated:
+    if current_user.is_authenticated and current_user.language:
         lang = current_user.language
     else:
         lang = session.get('language', request.args.get('lang', 'en'))
 
+    # Ensure lang is valid
+    if not lang or lang not in translations:
+        lang = 'en'
+
     # Get translations for the current language
     trans = translations.get(lang, translations['en'])
 
-    return dict(lang=lang, t=trans)
+    # Create a simple namespace object for dot notation access
+    class TranslationNamespace:
+        def __init__(self, data):
+            for key, value in data.items():
+                if isinstance(value, dict):
+                    setattr(self, key, TranslationNamespace(value))
+                else:
+                    setattr(self, key, value)
+
+        def __getattr__(self, name):
+            # Return empty string for missing attributes instead of raising error
+            return ''
+
+    t = TranslationNamespace(trans)
+
+    return dict(lang=lang, t=t)
 
 # Configuration
 UPLOAD_FOLDER = 'static/uploads'

@@ -1,0 +1,4 @@
+# Model files directory
+# Place trained models here:
+# - efficientnet_b0_pest_detection.h5
+# - resnet50_pest_detection.h5

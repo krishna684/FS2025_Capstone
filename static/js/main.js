@@ -81,8 +81,17 @@ function hideLoading(element) {
     element.disabled = false;
 }
 
-// API helper function
+// API helper function with retry support
 async function apiCall(endpoint, method = 'GET', data = null) {
+    // Use retry mechanism if available
+    if (typeof apiCallWithRetry === 'function') {
+        return apiCallWithRetry(endpoint, method, data, {
+            context: `${method} ${endpoint}`,
+            maxRetries: 3
+        });
+    }
+    
+    // Fallback to basic fetch
     const options = {
         method,
         headers: {

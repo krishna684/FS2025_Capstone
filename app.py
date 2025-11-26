@@ -7,22 +7,35 @@ import io
 from PIL import Image
 import json
 import os
+import logging
 from werkzeug.utils import secure_filename
-from models import db, User, Scan, Feedback, PestDatabase
+from config import config
+from database import db, init_db, get_mongo_db, close_db_connections
+from models import User, Scan, Feedback, PestDatabase, Treatment, IPMRecommendation
 
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Create Flask app
 app = Flask(__name__)
-app.secret_key = 'your-secret-key-here'  # Change this in production
 
-# Database configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///agbot.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['JWT_SECRET_KEY'] = 'your-jwt-secret-key'  # Change in production
+# Load configuration
+env = os.environ.get('FLASK_ENV', 'development')
+app.config.from_object(config[env])
 
-# Initialize extensions
-db.init_app(app)
+# Initialize database connections
+init_db(app)
+
+# Initialize Flask-Login
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
+
+# Register teardown handler for database connections
+@app.teardown_appcontext
+def shutdown_session(exception=None):
+    close_db_connections()
 
 # Load translations
 translations = {}
@@ -38,44 +51,243 @@ for lang in ['en', 'es', 'hi', 'sw']:
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-# Helper function for translations
+# Helper function for translations with fallback
 def get_translation(key, lang='en'):
+    """
+    Get translation for a key with fallback to English
+    
+    Args:
+        key: Translation key in dot notation (e.g., 'dashboard.greeting')
+        lang: Language code
+        
+    Returns:
+        Translated string or English fallback
+    """
     keys = key.split('.')
-    value = translations.get(lang, translations['en'])
+    
+    # Try to get translation in requested language
+    value = translations.get(lang, {})
+    found = True
+    
     for k in keys:
-        value = value.get(k, key)
-    return value
+        if isinstance(value, dict) and k in value:
+            value = value[k]
+        else:
+            found = False
+            break
+    
+    # If translation found and is a string, return it
+    if found and isinstance(value, str):
+        return value
+    
+    # Fall back to English
+    if lang != 'en':
+        value = translations.get('en', {})
+        for k in keys:
+            if isinstance(value, dict) and k in value:
+                value = value[k]
+            else:
+                # Log missing translation key
+                log_missing_translation(key, lang)
+                return key
+        
+        # Log that we're using English fallback
+        if isinstance(value, str):
+            log_missing_translation(key, lang)
+            return value
+    
+    # If even English doesn't have it, return the key itself
+    log_missing_translation(key, lang)
+    return key
+
+
+# Helper function to log missing translations
+def log_missing_translation(key, language):
+    """
+    Log missing translation keys to file for future addition
+    
+    Args:
+        key: Translation key that was missing
+        language: Language code where translation was missing
+    """
+    try:
+        log_file = 'missing_translations.log'
+        timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        log_entry = f"[{timestamp}] Missing translation: key='{key}', language='{language}'\n"
+        
+        with open(log_file, 'a', encoding='utf-8') as f:
+            f.write(log_entry)
+            
+    except Exception as e:
+        logger.error(f"Error logging missing translation: {e}")
+
+
+# Helper function to get localized pest name
+def get_localized_pest_name(pest_id, language='en'):
+    """
+    Get localized pest name from database
+    
+    Args:
+        pest_id: ID of the pest in PestDatabase
+        language: Language code ('en', 'es', 'hi', 'sw')
+        
+    Returns:
+        Localized pest name or English name as fallback
+    """
+    try:
+        pest = PestDatabase.query.get(pest_id)
+        
+        if not pest:
+            logger.warning(f"Pest with id={pest_id} not found")
+            return None
+        
+        # For English, return common_name directly
+        if language == 'en':
+            return pest.common_name
+        
+        # Query appropriate name field based on language
+        name_field = f'name_{language}'
+        localized_name = getattr(pest, name_field, None)
+        
+        # Fall back to English if localized name not available
+        if not localized_name:
+            logger.info(f"Localized name not found for pest_id={pest_id}, language={language}. Using English.")
+            return pest.common_name
+        
+        return localized_name
+        
+    except Exception as e:
+        logger.error(f"Error getting localized pest name: {e}")
+        return None
+
+# Helper function to detect browser language from Accept-Language header
+def detect_browser_language():
+    """
+    Detect language from browser Accept-Language header
+    Returns best match from supported languages or 'en' as default
+    """
+    # Get Accept-Language header
+    accept_language = request.headers.get('Accept-Language', '')
+    
+    if not accept_language:
+        return 'en'
+    
+    # Parse Accept-Language header (format: "en-US,en;q=0.9,es;q=0.8")
+    # Extract language codes and their quality values
+    supported_languages = ['en', 'es', 'hi', 'sw']
+    
+    # Split by comma to get individual language preferences
+    language_preferences = []
+    for lang_entry in accept_language.split(','):
+        # Split by semicolon to separate language from quality value
+        parts = lang_entry.strip().split(';')
+        lang_code = parts[0].strip()
+        
+        # Extract just the language part (e.g., 'en' from 'en-US')
+        if '-' in lang_code:
+            lang_code = lang_code.split('-')[0]
+        
+        # Get quality value (default to 1.0 if not specified)
+        quality = 1.0
+        if len(parts) > 1 and parts[1].strip().startswith('q='):
+            try:
+                quality = float(parts[1].strip()[2:])
+            except ValueError:
+                quality = 1.0
+        
+        language_preferences.append((lang_code.lower(), quality))
+    
+    # Sort by quality value (descending)
+    language_preferences.sort(key=lambda x: x[1], reverse=True)
+    
+    # Find first supported language
+    for lang_code, _ in language_preferences:
+        if lang_code in supported_languages:
+            return lang_code
+    
+    # Default to English if no match found
+    return 'en'
+
 
 # Context processor to inject language and translations into all templates
 @app.context_processor
 def inject_translations():
-    # Get language from user settings, session, or default to 'en'
+    # Language detection priority: user profile > session > browser header > default 'en'
+    lang = None
+    
+    # Priority 1: User profile language (if authenticated)
     if current_user.is_authenticated and current_user.language:
         lang = current_user.language
-    else:
-        lang = session.get('language', request.args.get('lang', 'en'))
+    
+    # Priority 2: Session language
+    if not lang:
+        lang = session.get('language')
+    
+    # Priority 3: Browser Accept-Language header
+    if not lang:
+        lang = detect_browser_language()
+    
+    # Priority 4: Default to English
+    if not lang:
+        lang = 'en'
 
     # Ensure lang is valid
-    if not lang or lang not in translations:
+    if lang not in translations:
         lang = 'en'
 
     # Get translations for the current language
     trans = translations.get(lang, translations['en'])
+    trans_en = translations.get('en', {})
 
-    # Create a simple namespace object for dot notation access
+    # Create a simple namespace object for dot notation access with fallback
     class TranslationNamespace:
-        def __init__(self, data):
+        def __init__(self, data, fallback_data=None, current_lang='en', path=''):
+            self._data = data
+            self._fallback = fallback_data
+            self._lang = current_lang
+            self._path = path
+            
             for key, value in data.items():
+                fallback_value = fallback_data.get(key) if fallback_data else None
+                new_path = f"{path}.{key}" if path else key
+                
                 if isinstance(value, dict):
-                    setattr(self, key, TranslationNamespace(value))
+                    setattr(self, key, TranslationNamespace(
+                        value, 
+                        fallback_value if isinstance(fallback_value, dict) else None,
+                        current_lang,
+                        new_path
+                    ))
                 else:
                     setattr(self, key, value)
 
         def __getattr__(self, name):
-            # Return empty string for missing attributes instead of raising error
+            # Check if key exists in current language
+            if name.startswith('_'):
+                raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
+            
+            # Try to get from fallback (English)
+            if self._fallback and isinstance(self._fallback, dict) and name in self._fallback:
+                fallback_value = self._fallback[name]
+                new_path = f"{self._path}.{name}" if self._path else name
+                
+                # Log missing translation
+                if self._lang != 'en':
+                    log_missing_translation(new_path, self._lang)
+                
+                if isinstance(fallback_value, dict):
+                    return TranslationNamespace(
+                        fallback_value,
+                        fallback_value,
+                        self._lang,
+                        new_path
+                    )
+                return fallback_value
+            
+            # Return empty string if not found anywhere
             return ''
 
-    t = TranslationNamespace(trans)
+    t = TranslationNamespace(trans, trans_en if lang != 'en' else None, lang)
 
     return dict(lang=lang, t=t)
 
@@ -309,20 +521,68 @@ def oauth_login(provider):
 @app.route('/api/feedback', methods=['POST'])
 @login_required
 def submit_feedback():
+    from db_sync import sync_feedback_to_mongodb
+    
     data = request.get_json()
+    scan_id = data.get('scan_id')
+    is_correct = data.get('is_correct')
+    actual_pest_name = data.get('actual_pest_name')
+    notes = data.get('notes')
+    
+    # Validate scan_id exists
+    scan = Scan.query.get(scan_id)
+    if not scan:
+        return jsonify({'error': 'Scan not found'}), 404
 
+    # Create feedback in PostgreSQL
     feedback = Feedback(
         user_id=current_user.id,
-        scan_id=data.get('scan_id'),
-        is_correct=data.get('is_correct'),
-        actual_pest_name=data.get('actual_pest_name'),
-        notes=data.get('notes')
+        scan_id=scan_id,
+        is_correct=is_correct,
+        actual_pest_name=actual_pest_name,
+        notes=notes
     )
 
     db.session.add(feedback)
     db.session.commit()
+    
+    # Get the feedback ID after commit
+    feedback_id = feedback.id
+    
+    # Update scan status if incorrect
+    if not is_correct:
+        scan.status = 'corrected'
+        db.session.commit()
+    
+    # Sync to MongoDB asynchronously
+    sync_feedback_to_mongodb(
+        feedback_id=feedback_id,
+        detection_id=scan_id,
+        user_id=current_user.id,
+        is_correct=is_correct,
+        corrected_label=actual_pest_name,
+        confidence_in_correction='high' if not is_correct else None,
+        comments=notes,
+        image_flagged_for_retraining=(not is_correct)
+    )
 
     return jsonify({'message': 'Feedback saved successfully'}), 200
+
+
+# API endpoint for feedback aggregation (admin/system use)
+@app.route('/api/admin/feedback/aggregate', methods=['GET'])
+@login_required
+def aggregate_feedback():
+    """
+    Aggregate feedback data for model retraining analysis
+    This endpoint can be called manually or by a scheduled task
+    """
+    from db_sync import run_feedback_aggregation_task
+    
+    # Run aggregation task
+    result = run_feedback_aggregation_task()
+    
+    return jsonify(result), 200
 
 # Get common pests for feedback dropdown
 @app.route('/api/pests')
@@ -331,22 +591,196 @@ def get_pests():
     pests = PestDatabase.query.all()
     return jsonify([pest.to_dict(lang) for pest in pests])
 
+# History API endpoints
+@app.route('/api/history')
+@login_required
+def get_history():
+    """
+    Get scan history for current user
+    Returns list of scans with date, pest_identified, confidence, severity
+    Requirements: 6.1, 6.2
+    """
+    try:
+        # Query PostgreSQL scans table filtered by current user
+        # Join with pests table to get pest details
+        # Order by created_at DESC
+        scans = Scan.query.filter_by(user_id=current_user.id).order_by(Scan.created_at.desc()).all()
+        
+        # Build response with required fields
+        history_data = []
+        for scan in scans:
+            scan_dict = {
+                'id': scan.id,
+                'date': scan.created_at.isoformat() if scan.created_at else None,
+                'pest_identified': scan.pest_identified,
+                'pest_scientific': scan.pest_scientific,
+                'confidence': round(scan.confidence * 100, 2) if scan.confidence else None,  # Convert to percentage
+                'severity': scan.severity,
+                'status': scan.status,
+                'crop_type': scan.crop_type,
+                'field_name': scan.field_name
+            }
+            history_data.append(scan_dict)
+        
+        logger.info(f"Retrieved {len(history_data)} scans for user {current_user.id}")
+        return jsonify(history_data), 200
+        
+    except Exception as e:
+        logger.error(f"Error retrieving scan history: {e}", exc_info=True)
+        return jsonify({'error': 'Failed to retrieve scan history'}), 500
+
+
+@app.route('/api/history/<int:scan_id>')
+@login_required
+def get_scan_detail(scan_id):
+    """
+    Get detailed information for a specific historical scan
+    Includes PostgreSQL scan data, MongoDB metadata, and IPM recommendations
+    Requirements: 6.3
+    """
+    from db_sync import get_detection_metadata
+    from ipm_engine import get_recommendations, get_pest_by_name
+    
+    try:
+        # Query PostgreSQL for scan record
+        scan = Scan.query.filter_by(id=scan_id, user_id=current_user.id).first()
+        
+        if not scan:
+            return jsonify({'error': 'Scan not found or access denied'}), 404
+        
+        # Build base scan details
+        scan_details = {
+            'id': scan.id,
+            'date': scan.created_at.isoformat() if scan.created_at else None,
+            'pest_identified': scan.pest_identified,
+            'pest_scientific': scan.pest_scientific,
+            'confidence': round(scan.confidence * 100, 2) if scan.confidence else None,
+            'severity': scan.severity,
+            'status': scan.status,
+            'crop_type': scan.crop_type,
+            'field_name': scan.field_name,
+            'damage_pattern': scan.damage_pattern,
+            'model_version': scan.model_version,
+            'image_path': scan.image_path
+        }
+        
+        # Query MongoDB for detailed metadata using _id = "scan_{scan_id}"
+        mongo_metadata = get_detection_metadata(scan_id)
+        if mongo_metadata:
+            scan_details['metadata'] = {
+                'alternatives': mongo_metadata.get('alternatives', []),
+                'image_info': mongo_metadata.get('image_info', {}),
+                'model_details': mongo_metadata.get('model_details', {}),
+                'location': mongo_metadata.get('location', {}),
+                'flagged_for_retraining': mongo_metadata.get('flagged_for_retraining', False)
+            }
+        
+        # Fetch associated recommendations from IPM engine
+        pest = get_pest_by_name(scan.pest_identified, current_user.language)
+        if pest:
+            lang = current_user.language if current_user.language else 'en'
+            recommendations = get_recommendations(
+                pest_id=pest.id,
+                crop=scan.crop_type,
+                region=current_user.location,
+                language=lang
+            )
+            scan_details['recommendations'] = recommendations
+        else:
+            scan_details['recommendations'] = []
+        
+        logger.info(f"Retrieved detailed scan information for scan_id={scan_id}")
+        return jsonify(scan_details), 200
+        
+    except Exception as e:
+        logger.error(f"Error retrieving scan detail: {e}", exc_info=True)
+        return jsonify({'error': 'Failed to retrieve scan details'}), 500
+
+
 # Export API endpoints
 @app.route('/api/export/scans')
 @login_required
 def export_scans():
-    scans = Scan.query.filter_by(user_id=current_user.id).order_by(Scan.created_at.desc()).all()
-    scans_data = [scan.to_dict() for scan in scans]
-
-    export_format = request.args.get('format', 'json')
-
-    if export_format == 'json':
-        return jsonify(scans_data)
-    elif export_format == 'csv':
-        # For CSV, we'll return JSON and let the frontend handle it
-        return jsonify(scans_data)
-    else:
-        return jsonify({'error': 'Unsupported format'}), 400
+    """
+    Export scan history in JSON or CSV format
+    Requirements: 6.4
+    """
+    import csv
+    import io
+    from flask import make_response
+    
+    try:
+        # Query all scans for current user
+        scans = Scan.query.filter_by(user_id=current_user.id).order_by(Scan.created_at.desc()).all()
+        
+        export_format = request.args.get('format', 'json')
+        
+        if export_format == 'json':
+            # For JSON: return array of scan objects
+            scans_data = []
+            for scan in scans:
+                scan_dict = {
+                    'id': scan.id,
+                    'date': scan.created_at.isoformat() if scan.created_at else None,
+                    'pest_identified': scan.pest_identified,
+                    'pest_scientific': scan.pest_scientific,
+                    'confidence': round(scan.confidence * 100, 2) if scan.confidence else None,
+                    'severity': scan.severity,
+                    'status': scan.status,
+                    'crop_type': scan.crop_type,
+                    'field_name': scan.field_name,
+                    'model_version': scan.model_version
+                }
+                scans_data.append(scan_dict)
+            
+            response = make_response(jsonify(scans_data))
+            response.headers['Content-Type'] = 'application/json'
+            response.headers['Content-Disposition'] = f'attachment; filename=scan_history_{datetime.now().strftime("%Y%m%d")}.json'
+            
+            logger.info(f"Exported {len(scans_data)} scans as JSON for user {current_user.id}")
+            return response
+            
+        elif export_format == 'csv':
+            # For CSV: convert to CSV format with headers
+            output = io.StringIO()
+            writer = csv.writer(output)
+            
+            # Write headers
+            headers = ['ID', 'Date', 'Pest Identified', 'Scientific Name', 'Confidence (%)', 
+                      'Severity', 'Status', 'Crop Type', 'Field Name', 'Model Version']
+            writer.writerow(headers)
+            
+            # Write data rows
+            for scan in scans:
+                row = [
+                    scan.id,
+                    scan.created_at.strftime('%Y-%m-%d %H:%M:%S') if scan.created_at else '',
+                    scan.pest_identified or '',
+                    scan.pest_scientific or '',
+                    round(scan.confidence * 100, 2) if scan.confidence else '',
+                    scan.severity or '',
+                    scan.status or '',
+                    scan.crop_type or '',
+                    scan.field_name or '',
+                    scan.model_version or ''
+                ]
+                writer.writerow(row)
+            
+            # Create response with CSV data
+            output.seek(0)
+            response = make_response(output.getvalue())
+            response.headers['Content-Type'] = 'text/csv'
+            response.headers['Content-Disposition'] = f'attachment; filename=scan_history_{datetime.now().strftime("%Y%m%d")}.csv'
+            
+            logger.info(f"Exported {len(scans)} scans as CSV for user {current_user.id}")
+            return response
+            
+        else:
+            return jsonify({'error': 'Unsupported format. Use format=json or format=csv'}), 400
+            
+    except Exception as e:
+        logger.error(f"Error exporting scans: {e}", exc_info=True)
+        return jsonify({'error': 'Failed to export scan history'}), 500
 
 @app.route('/api/export/profile')
 @login_required
@@ -455,10 +889,17 @@ def about():
     return render_template('about.html', team=team)
 
 @app.route('/analyze', methods=['POST'])
+@login_required
 def analyze():
     """Handle image upload and analysis"""
+    from ai_client import call_ai_service
+    from confidence_utils import classify_confidence, should_request_feedback
+    from ipm_engine import get_recommendations, get_pest_by_name
+    from db_sync import sync_detection_metadata
+    
     try:
         # Check if file was uploaded
+        filepath = None
         if 'image' not in request.files:
             # Check if base64 image was sent
             json_data = request.get_json(silent=True)
@@ -467,6 +908,12 @@ def analyze():
                 # Process base64 image
                 image_str = image_data.split(',')[1] if ',' in image_data else image_data
                 image_bytes = base64.b64decode(image_str)
+                
+                # Save base64 image to file
+                filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_capture.jpg"
+                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                with open(filepath, 'wb') as f:
+                    f.write(image_bytes)
             else:
                 return jsonify({'error': 'No image provided'}), 400
         else:
@@ -481,18 +928,118 @@ def analyze():
             else:
                 return jsonify({'error': 'Invalid file format'}), 400
 
-        # Simulate AI analysis (in production, call your ML model here)
-        analysis_result = simulate_pest_detection()
-
-        # Store in history
-        scan_history.append({
-            'timestamp': datetime.now().isoformat(),
-            'result': analysis_result
-        })
+        # Call AI microservice
+        ai_result = call_ai_service(filepath)
+        
+        # Check if AI service call was successful
+        if not ai_result.get('success'):
+            return jsonify({'error': ai_result.get('error', 'AI service error')}), 500
+        
+        # Extract AI response data
+        pest_label = ai_result.get('pest_label')
+        scientific_name = ai_result.get('scientific_name')
+        confidence = ai_result.get('confidence')
+        alternatives = ai_result.get('alternatives', [])
+        processing_time_ms = ai_result.get('processing_time_ms')
+        timing_breakdown = ai_result.get('timing_breakdown', {})
+        fallback_used = ai_result.get('fallback_used', False)
+        
+        # Classify confidence level
+        confidence_level = classify_confidence(confidence)
+        
+        # Look up pest details from database
+        pest = get_pest_by_name(pest_label, current_user.language)
+        pest_id = pest.id if pest else None
+        
+        # Get localized pest name if available
+        if pest:
+            lang = current_user.language if current_user.language else 'en'
+            name_field = f'name_{lang}'
+            localized_name = getattr(pest, name_field, None) if lang != 'en' else None
+            pest_common_name = localized_name or pest.common_name
+            pest_scientific_name = pest.scientific_name or scientific_name
+        else:
+            pest_common_name = pest_label
+            pest_scientific_name = scientific_name
+        
+        # Get IPM recommendations
+        recommendations = []
+        if pest_id:
+            crop_type = request.form.get('crop_type') or current_user.crops
+            region = current_user.location
+            lang = current_user.language if current_user.language else 'en'
+            
+            recommendations = get_recommendations(
+                pest_id=pest_id,
+                crop=crop_type,
+                region=region,
+                language=lang
+            )
+        
+        # Store scan in PostgreSQL
+        scan = Scan(
+            user_id=current_user.id,
+            image_path=filepath,
+            pest_identified=pest_common_name,
+            pest_scientific=pest_scientific_name,
+            confidence=confidence,
+            status='identified',
+            model_version=timing_breakdown.get('primary_model', 'v1.0.0')
+        )
+        
+        db.session.add(scan)
+        db.session.commit()
+        
+        # Get the scan ID after commit
+        scan_id = scan.id
+        
+        # Prepare image info for MongoDB
+        image_info = {
+            'filename': os.path.basename(filepath),
+            'file_size_kb': os.path.getsize(filepath) / 1024 if os.path.exists(filepath) else 0
+        }
+        
+        # Prepare model details for MongoDB
+        model_details = {
+            'primary_model': 'EfficientNet-B0',
+            'primary_version': 'v2.1.0',
+            'fallback_used': fallback_used,
+            'preprocessing_time_ms': timing_breakdown.get('preprocessing_ms', 0),
+            'inference_time_ms': timing_breakdown.get('primary_inference_ms', 0) + timing_breakdown.get('fallback_inference_ms', 0),
+            'total_time_ms': processing_time_ms
+        }
+        
+        # Sync to MongoDB asynchronously
+        sync_detection_metadata(
+            scan_id=scan_id,
+            user_id=current_user.id,
+            pest_label=pest_label,
+            confidence=confidence,
+            alternatives=alternatives,
+            image_info=image_info,
+            model_details=model_details,
+            location=None  # TODO: Add location data if available
+        )
+        
+        # Build complete response
+        analysis_result = {
+            'success': True,
+            'scan_id': scan_id,
+            'pest_identified': pest_common_name,
+            'pest_scientific': pest_scientific_name,
+            'confidence': round(confidence * 100, 2),  # Convert to percentage
+            'confidence_level': confidence_level,
+            'alternatives': alternatives,
+            'recommendations': recommendations,
+            'processing_time_ms': processing_time_ms,
+            'should_request_feedback': should_request_feedback(confidence),
+            'timestamp': datetime.now().isoformat()
+        }
 
         return jsonify(analysis_result)
 
     except Exception as e:
+        logger.error(f"Error in analyze endpoint: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 @app.route('/results')
@@ -531,73 +1078,7 @@ def results():
     return render_template('results.html', result=latest_result, 
                          timestamp=datetime.now().strftime('%m/%d/%Y, %I:%M:%S %p'))
 
-def simulate_pest_detection():
-    """Simulate pest detection (replace with actual ML model)"""
-    pests = [
-        {
-            'name': 'Japanese Beetle',
-            'scientific': 'Popillia japonica',
-            'damage': 'Skeletonized leaves with lace-like appearance',
-            'severity': 'Moderate'
-        },
-        {
-            'name': 'Aphids',
-            'scientific': 'Aphidoidea',
-            'damage': 'Curled leaves, sticky honeydew on plant surface',
-            'severity': 'Mild'
-        },
-        {
-            'name': 'Spider Mites',
-            'scientific': 'Tetranychidae',
-            'damage': 'Fine webbing and yellow stippling on leaves',
-            'severity': 'Severe'
-        },
-        {
-            'name': 'No Pest Detected',
-            'scientific': 'N/A',
-            'damage': 'Plant appears healthy',
-            'severity': 'Healthy'
-        }
-    ]
-    
-    # Randomly select a pest (weighted towards pest detection for demo)
-    weights = [0.3, 0.25, 0.2, 0.25]  # Weights for each pest
-    selected = random.choices(pests, weights=weights)[0]
-    
-    if selected['name'] == 'No Pest Detected':
-        return {
-            'status': 'Healthy',
-            'pest_identified': 'None',
-            'confidence': random.randint(92, 99),
-            'message': 'Your plant appears to be healthy!'
-        }
-    
-    return {
-        'status': 'Pest Damaged',
-        'pest_identified': selected['name'],
-        'pest_scientific': selected['scientific'],
-        'confidence': random.randint(85, 98),
-        'damage_pattern': selected['damage'],
-        'severity': selected['severity'],
-        'immediate_action': selected['severity'] in ['Moderate', 'Severe'],
-        'treatments': {
-            'immediate': [
-                'Hand-pick pests if visible',
-                'Isolate affected plants',
-                'Remove damaged leaves'
-            ],
-            'ipm': [
-                'Apply appropriate organic pesticide',
-                'Introduce beneficial insects',
-                'Use physical barriers'
-            ],
-            'prevention': [
-                'Regular monitoring',
-                'Maintain plant health',
-                'Crop rotation'
-            ]
-        }
-    }
+
 
 @app.route('/api/stats')
 def get_stats():

@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>Mobile Responsive Test - AGBOT</title>
+    <link rel="stylesheet" href="static/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .test-section {
+            padding: 2rem;
+            margin: 1rem 0;
+            background: var(--card-bg);
+            border-radius: 0.75rem;
+        }
+        .test-section h2 {
+            margin-bottom: 1rem;
+            color: var(--primary-color);
+        }
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        .test-item {
+            padding: 1rem;
+            background: var(--background);
+            border-radius: 0.5rem;
+            text-align: center;
+        }
+        .touch-target {
+            min-width: 44px;
+            min-height: 44px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            margin: 0.5rem;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.75rem 1rem;
+        }
+        .status-indicator {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border-radius: 0.5rem;
+            margin: 0.5rem;
+        }
+        .status-pass {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+        }
+        .status-info {
+            background: rgba(59, 130, 246, 0.1);
+            color: var(--info);
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="nav-logo">
+                <i class="fas fa-leaf"></i>
+                <div>
+                    <h2>AGBOT</h2>
+                    <span>Mobile Test</span>
+                </div>
+            </div>
+            <div class="nav-user">
+                <button class="theme-toggle" id="themeToggle" title="Toggle theme">
+                    <i class="fas fa-moon"></i>
+                </button>
+                <div class="user-profile">
+                    <i class="fas fa-user"></i> Test User
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="content">
+        <div class="test-section">
+            <h2><i class="fas fa-mobile-alt"></i> Mobile Responsiveness Test</h2>
+            <p>This page tests the mobile responsive features implemented for AGBOT.</p>
+            
+            <div class="status-indicator status-pass">
+                <i class="fas fa-check-circle"></i> Viewport Meta Tag: Configured
+            </div>
+            <div class="status-indicator status-pass">
+                <i class="fas fa-check-circle"></i> Touch Targets: 44x44px minimum
+            </div>
+            <div class="status-indicator status-pass">
+                <i class="fas fa-check-circle"></i> Media Queries: < 768px
+            </div>
+            <div class="status-indicator status-pass">
+                <i class="fas fa-check-circle"></i> Flexbox/Grid Layout: Implemented
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2><i class="fas fa-hand-pointer"></i> Touch Target Tests</h2>
+            <p>All buttons below should be at least 44x44px for easy touch interaction:</p>
+            <div>
+                <button class="touch-target" onclick="alert('Button 1 clicked!')">
+                    <i class="fas fa-check"></i> Button 1
+                </button>
+                <button class="touch-target" onclick="alert('Button 2 clicked!')">
+                    <i class="fas fa-camera"></i> Button 2
+                </button>
+                <button class="touch-target" onclick="alert('Button 3 clicked!')">
+                    <i class="fas fa-history"></i> Button 3
+                </button>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2><i class="fas fa-th"></i> Responsive Grid Test</h2>
+            <p>This grid should adapt to screen size:</p>
+            <div class="test-grid">
+                <div class="test-item">
+                    <i class="fas fa-mobile-alt" style="font-size: 2rem; color: var(--primary-color);"></i>
+                    <h3>Mobile</h3>
+                    <p>< 768px</p>
+                </div>
+                <div class="test-item">
+                    <i class="fas fa-tablet-alt" style="font-size: 2rem; color: var(--info);"></i>
+                    <h3>Tablet</h3>
+                    <p>768px - 1024px</p>
+                </div>
+                <div class="test-item">
+                    <i class="fas fa-desktop" style="font-size: 2rem; color: var(--secondary-color);"></i>
+                    <h3>Desktop</h3>
+                    <p>> 1024px</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2><i class="fas fa-chart-bar"></i> Stats Grid Test</h2>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon blue">
+                        <i class="fas fa-camera"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>Total Scans</h3>
+                        <div class="stat-value">42</div>
+                        <div class="stat-change positive">+12% this week</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon green">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>Healthy Plants</h3>
+                        <div class="stat-value">38</div>
+                        <div class="stat-change positive">90% healthy</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon orange">
+                        <i class="fas fa-bug"></i>
+                    </div>
+                    <div class="stat-content">
+                        <h3>Pests Detected</h3>
+                        <div class="stat-value">4</div>
+                        <div class="stat-change negative">-5% this week</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2><i class="fas fa-info-circle"></i> Screen Size Info</h2>
+            <div class="status-indicator status-info">
+                <i class="fas fa-ruler"></i> Screen Width: <span id="screenWidth"></span>px
+            </div>
+            <div class="status-indicator status-info">
+                <i class="fas fa-ruler-vertical"></i> Screen Height: <span id="screenHeight"></span>px
+            </div>
+            <div class="status-indicator status-info">
+                <i class="fas fa-mobile-alt"></i> Device Type: <span id="deviceType"></span>
+            </div>
+            <div class="status-indicator status-info">
+                <i class="fas fa-compass"></i> Orientation: <span id="orientation"></span>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2><i class="fas fa-list-check"></i> Feature Checklist</h2>
+            <ul style="list-style: none; padding: 0;">
+                <li style="padding: 0.5rem 0;"><i class="fas fa-check-circle" style="color: var(--success);"></i> Viewport meta tag with proper scaling</li>
+                <li style="padding: 0.5rem 0;"><i class="fas fa-check-circle" style="color: var(--success);"></i> Media queries for screens < 768px</li>
+                <li style="padding: 0.5rem 0;"><i class="fas fa-check-circle" style="color: var(--success);"></i> Mobile-first flexbox/grid layouts</li>
+                <li style="padding: 0.5rem 0;"><i class="fas fa-check-circle" style="color: var(--success);"></i> Touch targets minimum 44x44px</li>
+                <li style="padding: 0.5rem 0;"><i class="fas fa-check-circle" style="color: var(--success);"></i> Responsive navigation (FAB on mobile)</li>
+                <li style="padding: 0.5rem 0;"><i class="fas fa-check-circle" style="color: var(--success);"></i> Optimized padding and spacing</li>
+                <li style="padding: 0.5rem 0;"><i class="fas fa-check-circle" style="color: var(--success);"></i> Safe area insets for notched devices</li>
+                <li style="padding: 0.5rem 0;"><i class="fas fa-check-circle" style="color: var(--success);"></i> Touch-friendly interactions</li>
+                <li style="padding: 0.5rem 0;"><i class="fas fa-check-circle" style="color: var(--success);"></i> Landscape orientation support</li>
+                <li style="padding: 0.5rem 0;"><i class="fas fa-check-circle" style="color: var(--success);"></i> Reduced motion support</li>
+            </ul>
+        </div>
+    </main>
+
+    <!-- Floating Action Button -->
+    <div class="fab-container">
+        <button class="fab-button" id="fabButton">
+            <i class="fas fa-plus"></i>
+        </button>
+        <div class="fab-menu" id="fabMenu">
+            <a href="#" class="fab-menu-item">
+                <i class="fas fa-home"></i>
+                <span>Home</span>
+            </a>
+            <a href="#" class="fab-menu-item">
+                <i class="fas fa-camera"></i>
+                <span>Scan</span>
+            </a>
+            <a href="#" class="fab-menu-item">
+                <i class="fas fa-history"></i>
+                <span>History</span>
+            </a>
+        </div>
+    </div>
+
+    <script>
+        // Update screen info
+        function updateScreenInfo() {
+            document.getElementById('screenWidth').textContent = window.innerWidth;
+            document.getElementById('screenHeight').textContent = window.innerHeight;
+            
+            let deviceType = 'Desktop';
+            if (window.innerWidth < 768) {
+                deviceType = 'Mobile';
+            } else if (window.innerWidth < 1024) {
+                deviceType = 'Tablet';
+            }
+            document.getElementById('deviceType').textContent = deviceType;
+            
+            const orientation = window.innerWidth > window.innerHeight ? 'Landscape' : 'Portrait';
+            document.getElementById('orientation').textContent = orientation;
+        }
+
+        updateScreenInfo();
+        window.addEventListener('resize', updateScreenInfo);
+        window.addEventListener('orientationchange', updateScreenInfo);
+
+        // Theme toggle
+        const themeToggle = document.getElementById('themeToggle');
+        const html = document.documentElement;
+        
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = html.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            html.setAttribute('data-theme', newTheme);
+            
+            const icon = themeToggle.querySelector('i');
+            if (newTheme === 'dark') {
+                icon.classList.remove('fa-moon');
+                icon.classList.add('fa-sun');
+            } else {
+                icon.classList.remove('fa-sun');
+                icon.classList.add('fa-moon');
+            }
+        });
+
+        // FAB menu toggle
+        const fabButton = document.getElementById('fabButton');
+        const fabMenu = document.getElementById('fabMenu');
+        
+        fabButton.addEventListener('click', () => {
+            fabButton.classList.toggle('active');
+            fabMenu.classList.toggle('active');
+        });
+
+        // Close FAB menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.fab-container')) {
+                fabButton.classList.remove('active');
+                fabMenu.classList.remove('active');
+            }
+        });
+    </script>
+</body>
+</html>

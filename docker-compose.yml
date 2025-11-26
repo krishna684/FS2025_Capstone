@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  # AI Microservice
+  ai-service:
+    build:
+      context: ./ai_service
+      dockerfile: Dockerfile
+    container_name: agbot-ai-service
+    ports:
+      - "8000:8000"
+    environment:
+      - TF_CPP_MIN_LOG_LEVEL=2
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./ai_service:/app
+      - ./ai_service/models:/app/models
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Flask Backend (placeholder for future integration)
+  # flask-backend:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile.flask
+  #   container_name: agbot-flask-backend
+  #   ports:
+  #     - "5001:5001"
+  #   environment:
+  #     - FLASK_ENV=development
+  #     - AI_SERVICE_URL=http://ai-service:8000
+  #   depends_on:
+  #     - ai-service
+  #   restart: unless-stopped
+
+networks:
+  default:
+    name: agbot-network

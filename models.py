@@ -1,9 +1,7 @@
-from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime
-
-db = SQLAlchemy()
+from database import db
 
 class User(UserMixin, db.Model):
     """User model for authentication"""
@@ -61,16 +59,17 @@ class Scan(db.Model):
     __tablename__ = 'scans'
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
     image_path = db.Column(db.String(255), nullable=True)
-    pest_identified = db.Column(db.String(100), nullable=True)
+    pest_identified = db.Column(db.String(100), nullable=True, index=True)
     pest_scientific = db.Column(db.String(100), nullable=True)
     confidence = db.Column(db.Float, nullable=True)
-    status = db.Column(db.String(50), nullable=True)  # Healthy, Pest Damaged
-    severity = db.Column(db.String(50), nullable=True)  # Mild, Moderate, Severe
+    status = db.Column(db.String(50), nullable=True)  # identified, corrected, verified
+    severity = db.Column(db.String(50), nullable=True)  # mild, moderate, severe, healthy
     crop_type = db.Column(db.String(100), nullable=True)
     field_name = db.Column(db.String(100), nullable=True)
     damage_pattern = db.Column(db.Text, nullable=True)
+    model_version = db.Column(db.String(20), nullable=True)  # For model traceability
     created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
 
     # Relationships
@@ -87,6 +86,7 @@ class Scan(db.Model):
             'severity': self.severity,
             'crop_type': self.crop_type,
             'field_name': self.field_name,
+            'model_version': self.model_version,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'has_feedback': self.feedbacks.count() > 0
         }
@@ -98,7 +98,7 @@ class Feedback(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    scan_id = db.Column(db.Integer, db.ForeignKey('scans.id'), nullable=False)
+    scan_id = db.Column(db.Integer, db.ForeignKey('scans.id'), nullable=False, index=True)
 
     # Feedback type
     is_correct = db.Column(db.Boolean, nullable=False)  # True if AI was correct
@@ -133,7 +133,7 @@ class PestDatabase(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     common_name = db.Column(db.String(100), nullable=False, index=True)
     scientific_name = db.Column(db.String(100), nullable=True)
-    category = db.Column(db.String(50), nullable=True)  # insect, disease, fungal
+    category = db.Column(db.String(50), nullable=True, index=True)  # insect, disease, fungal
     description = db.Column(db.Text, nullable=True)
 
     # Multilingual support
@@ -151,4 +151,66 @@ class PestDatabase(db.Model):
             'common_name': localized_name or self.common_name,
             'scientific_name': self.scientific_name,
             'category': self.category
+        }
+
+
+class Treatment(db.Model):
+    """Treatment options for pest management"""
+    __tablename__ = 'treatments'
+
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), nullable=False)
+    type = db.Column(db.String(50), nullable=False)  # cultural, biological, chemical
+    description = db.Column(db.Text, nullable=True)
+    
+    # Multilingual descriptions
+    description_es = db.Column(db.Text, nullable=True)
+    description_hi = db.Column(db.Text, nullable=True)
+    description_sw = db.Column(db.Text, nullable=True)
+    
+    cost_estimate = db.Column(db.String(50), nullable=True)
+    effectiveness_rate = db.Column(db.Float, nullable=True)
+
+    def to_dict(self, language='en'):
+        """Convert treatment to dictionary with language support"""
+        desc_field = f'description_{language}'
+        localized_desc = getattr(self, desc_field, None) if language != 'en' else None
+
+        return {
+            'id': self.id,
+            'name': self.name,
+            'type': self.type,
+            'description': localized_desc or self.description,
+            'cost_estimate': self.cost_estimate,
+            'effectiveness_rate': self.effectiveness_rate
+        }
+
+
+class IPMRecommendation(db.Model):
+    """IPM recommendations linking pests to treatments"""
+    __tablename__ = 'ipm_recommendations'
+
+    id = db.Column(db.Integer, primary_key=True)
+    pest_id = db.Column(db.Integer, db.ForeignKey('pests.id'), nullable=False, index=True)
+    treatment_id = db.Column(db.Integer, db.ForeignKey('treatments.id'), nullable=False)
+    priority = db.Column(db.String(20), nullable=True)  # primary, secondary, last_resort
+    region = db.Column(db.String(50), nullable=True, index=True)  # region code or 'global'
+    crop_type = db.Column(db.String(50), nullable=True)
+    conditions = db.Column(db.Text, nullable=True)  # JSON string with additional conditions
+    success_rate = db.Column(db.Float, nullable=True)
+
+    # Relationships
+    pest = db.relationship('PestDatabase', backref='recommendations')
+    treatment = db.relationship('Treatment', backref='recommendations')
+
+    def to_dict(self, language='en'):
+        """Convert IPM recommendation to dictionary"""
+        return {
+            'id': self.id,
+            'pest': self.pest.to_dict(language) if self.pest else None,
+            'treatment': self.treatment.to_dict(language) if self.treatment else None,
+            'priority': self.priority,
+            'region': self.region,
+            'crop_type': self.crop_type,
+            'success_rate': self.success_rate
         }

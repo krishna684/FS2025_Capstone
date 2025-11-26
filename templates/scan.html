@@ -82,6 +82,8 @@
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/image-compression.js') }}"></script>
+<script src="{{ url_for('static', filename='js/offline-queue.js') }}"></script>
 <script>
 const takePhotoBtn = document.getElementById('takePhotoBtn');
 const fileInput = document.getElementById('fileInput');
@@ -125,14 +127,26 @@ takePhotoBtn.addEventListener('click', async () => {
 });
 
 // Capture photo from video stream
-function capturePhoto() {
+async function capturePhoto() {
     const canvas = document.createElement('canvas');
     canvas.width = videoElement.videoWidth;
     canvas.height = videoElement.videoHeight;
     const context = canvas.getContext('2d');
     context.drawImage(videoElement, 0, 0);
     
-    capturedImage = canvas.toDataURL('image/jpeg');
+    const rawImage = canvas.toDataURL('image/jpeg');
+    
+    // Compress the captured image
+    try {
+        capturedImage = await compressImageFromDataUrl(rawImage, {
+            maxWidth: 1920,
+            maxHeight: 1920,
+            quality: 0.85
+        });
+    } catch (error) {
+        console.error('Compression failed, using original:', error);
+        capturedImage = rawImage;
+    }
     
     // Stop camera
     if (stream) {
@@ -151,21 +165,46 @@ function capturePhoto() {
 }
 
 // File upload functionality
-fileInput.addEventListener('change', (e) => {
+fileInput.addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (file) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            capturedImage = e.target.result;
-            imagePreview.src = capturedImage;
-            imagePreview.style.display = 'block';
-            cameraPlaceholder.style.display = 'none';
-            videoElement.style.display = 'none';
+        try {
+            // Compress the uploaded image
+            const compressedBlob = await compressImage(file, {
+                maxWidth: 1920,
+                maxHeight: 1920,
+                quality: 0.85
+            });
             
-            // Show analysis modal
-            showAnalysisModal(capturedImage);
-        };
-        reader.readAsDataURL(file);
+            // Convert compressed blob to data URL
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                capturedImage = e.target.result;
+                imagePreview.src = capturedImage;
+                imagePreview.style.display = 'block';
+                cameraPlaceholder.style.display = 'none';
+                videoElement.style.display = 'none';
+                
+                // Show analysis modal
+                showAnalysisModal(capturedImage);
+            };
+            reader.readAsDataURL(compressedBlob);
+        } catch (error) {
+            console.error('Compression failed:', error);
+            // Fall back to original file
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                capturedImage = e.target.result;
+                imagePreview.src = capturedImage;
+                imagePreview.style.display = 'block';
+                cameraPlaceholder.style.display = 'none';
+                videoElement.style.display = 'none';
+                
+                // Show analysis modal
+                showAnalysisModal(capturedImage);
+            };
+            reader.readAsDataURL(file);
+        }
     }
 });
 
@@ -185,6 +224,34 @@ analyzeBtn.addEventListener('click', async () => {
     progressFill.style.width = '0%';
     setTimeout(() => progressFill.style.width = '100%', 100);
     
+    // Check if online
+    if (!navigator.onLine) {
+        // Queue image for later upload
+        try {
+            await queueImage(capturedImage, {
+                timestamp: Date.now(),
+                source: 'scan_page'
+            });
+            
+            loadingModal.style.display = 'none';
+            
+            if (typeof showToast === 'function') {
+                showToast('You are offline. Image queued for upload when connection is restored.', 'warning');
+            } else {
+                alert('You are offline. Image queued for upload when connection is restored.');
+            }
+            
+            // Show queue count
+            const count = await getQueueCount();
+            console.log(`[Queue] ${count} image(s) in queue`);
+        } catch (error) {
+            console.error('Failed to queue image:', error);
+            loadingModal.style.display = 'none';
+            alert('Failed to queue image. Please try again when online.');
+        }
+        return;
+    }
+    
     try {
         // Send image to backend for analysis
         const response = await fetch('/analyze', {
@@ -197,6 +264,10 @@ analyzeBtn.addEventListener('click', async () => {
             })
         });
         
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
         const result = await response.json();
         
         // Redirect to results page
@@ -206,8 +277,28 @@ analyzeBtn.addEventListener('click', async () => {
         
     } catch (error) {
         console.error('Analysis error:', error);
-        alert('Error analyzing image. Please try again.');
         loadingModal.style.display = 'none';
+        
+        // Queue image if network error
+        if (!navigator.onLine || error.message.includes('Failed to fetch')) {
+            try {
+                await queueImage(capturedImage, {
+                    timestamp: Date.now(),
+                    source: 'scan_page'
+                });
+                
+                if (typeof showToast === 'function') {
+                    showToast('Network error. Image queued for upload.', 'warning');
+                } else {
+                    alert('Network error. Image queued for upload when connection is restored.');
+                }
+            } catch (queueError) {
+                console.error('Failed to queue image:', queueError);
+                alert('Error analyzing image. Please try again.');
+            }
+        } else {
+            alert('Error analyzing image. Please try again.');
+        }
     }
 });
 

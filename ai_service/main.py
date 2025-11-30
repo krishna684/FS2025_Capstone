@@ -10,7 +10,7 @@ import logging
 import asyncio
 
 from preprocessing import preprocess_image
-from models import get_model, get_scientific_name
+from models import get_model, get_scientific_name, get_model_versions
 from ensemble import ensemble_predict, should_invoke_fallback
 
 # Configure logging
@@ -170,6 +170,9 @@ async def _process_image(image_data: bytes, start_time: float) -> Dict:
     # Get scientific name
     scientific_name = get_scientific_name(final_label)
     
+    # Get model versions
+    model_versions = get_model_versions()
+    
     # Build response
     response = {
         "pest_label": final_label,
@@ -183,10 +186,19 @@ async def _process_image(image_data: bytes, start_time: float) -> Dict:
             "fallback_inference_ms": round(fallback_inference_time, 2) if fallback_used else 0,
             "total_ms": round(total_time, 2)
         },
-        "fallback_used": fallback_used
+        "fallback_used": fallback_used,
+        "model_version": model_versions['primary_model_version'],
+        "model_details": {
+            "primary_model": "EfficientNet-B0",
+            "primary_version": model_versions['primary_model_version'],
+            "fallback_model": "ResNet-50",
+            "fallback_version": model_versions['fallback_model_version'],
+            "fallback_used": fallback_used
+        }
     }
     
-    logger.info(f"Detection complete: {final_label} ({final_conf:.2f}) in {total_time:.2f}ms")
+    logger.info(f"Detection complete: {final_label} ({final_conf:.2f}) in {total_time:.2f}ms "
+                f"[Model: {model_versions['primary_model_version']}]")
     
     return response
 

@@ -11,6 +11,11 @@ import os
 
 logger = logging.getLogger(__name__)
 
+# Model version configuration
+# Update these when deploying new model versions
+PRIMARY_MODEL_VERSION = os.environ.get('PRIMARY_MODEL_VERSION', 'v2.1.0')
+FALLBACK_MODEL_VERSION = os.environ.get('FALLBACK_MODEL_VERSION', 'v1.5.0')
+
 # Pest class labels (in production, load from config or database)
 PEST_LABELS = [
     "Fall Armyworm",
@@ -46,6 +51,8 @@ class PestDetectionModel:
     def __init__(self):
         self.primary_model = None
         self.fallback_model = None
+        self.primary_model_version = PRIMARY_MODEL_VERSION
+        self.fallback_model_version = FALLBACK_MODEL_VERSION
         self._load_models()
     
     def _load_models(self):
@@ -231,3 +238,18 @@ def get_model() -> PestDetectionModel:
 def get_scientific_name(pest_label: str) -> str:
     """Get scientific name for a pest label"""
     return SCIENTIFIC_NAMES.get(pest_label, "Unknown")
+
+
+def get_model_versions() -> Dict[str, str]:
+    """
+    Get current model versions
+    
+    Returns:
+        Dictionary with primary and fallback model versions
+        
+    Requirements: 9.4
+    """
+    return {
+        'primary_model_version': PRIMARY_MODEL_VERSION,
+        'fallback_model_version': FALLBACK_MODEL_VERSION
+    }

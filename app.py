@@ -32,6 +32,22 @@ login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
 
+# Initialize HTTPS enforcement with Flask-Talisman (production only)
+# Requirements: 11.3 - HTTPS enforcement with TLS 1.2+
+if env == 'production':
+    from flask_talisman import Talisman
+    Talisman(app, 
+             force_https=True,
+             strict_transport_security=True,
+             strict_transport_security_max_age=31536000,  # 1 year
+             content_security_policy=None,  # Can be configured as needed
+             force_https_permanent=False)
+    logger.info("HTTPS enforcement enabled with Flask-Talisman")
+
+# Initialize Flask-SocketIO for WebSocket support
+from websocket_alerts import init_socketio
+socketio = init_socketio(app)
+
 # Register teardown handler for database connections
 @app.teardown_appcontext
 def shutdown_session(exception=None):
@@ -358,6 +374,8 @@ def allowed_file(filename):
 # Authentication routes
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    from jwt_utils import generate_jwt_token
+    
     if current_user.is_authenticated:
         return redirect(url_for('index'))
 
@@ -376,6 +394,12 @@ def login():
             login_user(user, remember=remember)
             user.last_login = datetime.utcnow()
             db.session.commit()
+            
+            # Generate JWT token with 24-hour expiration
+            jwt_token = generate_jwt_token(user.id, user.email)
+            if jwt_token:
+                session['jwt_token'] = jwt_token
+                logger.info(f"JWT token issued for user {user.id}")
 
             next_page = request.args.get('next')
             return redirect(next_page if next_page else url_for('index'))
@@ -420,8 +444,44 @@ def register():
 @app.route('/logout')
 @login_required
 def logout():
+    # Clear JWT token from session
+    session.pop('jwt_token', None)
     logout_user()
     return redirect(url_for('login'))
+
+
+@app.route('/api/auth/refresh', methods=['POST'])
+@login_required
+def refresh_token():
+    """
+    Refresh JWT token endpoint
+    Returns a new token with fresh 24-hour expiration
+    Requirements: 11.2
+    """
+    from jwt_utils import refresh_jwt_token
+    
+    try:
+        current_token = session.get('jwt_token')
+        
+        if not current_token:
+            return jsonify({'error': 'No token found'}), 401
+        
+        # Generate new token
+        new_token = refresh_jwt_token(current_token)
+        
+        if new_token:
+            session['jwt_token'] = new_token
+            return jsonify({
+                'success': True,
+                'message': 'Token refreshed successfully',
+                'token': new_token
+            }), 200
+        else:
+            return jsonify({'error': 'Failed to refresh token'}), 401
+            
+    except Exception as e:
+        logger.error(f"Error refreshing token: {e}", exc_info=True)
+        return jsonify({'error': 'Token refresh failed'}), 500
 
 @app.route('/settings')
 @login_required
@@ -792,6 +852,197 @@ def export_profile():
     }
     return jsonify(profile_data)
 
+
+@app.route('/api/images/<path:filename>')
+@login_required
+def serve_image(filename):
+    """
+    Serve encrypted images by decrypting them on-the-fly
+    Requirements: 11.4 - Decrypt images when serving to users
+    """
+    from encryption_utils import serve_encrypted_image
+    from flask import send_file
+    import io
+    
+    try:
+        # Construct full path
+        image_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        
+        # Check if file exists (might be encrypted)
+        if not os.path.exists(image_path):
+            # Try with .enc extension
+            image_path = image_path + '.enc'
+            if not os.path.exists(image_path):
+                return jsonify({'error': 'Image not found'}), 404
+        
+        # If file is encrypted, decrypt and serve
+        if image_path.endswith('.enc'):
+            image_data, mimetype = serve_encrypted_image(image_path)
+            if image_data:
+                return send_file(
+                    io.BytesIO(image_data),
+                    mimetype=mimetype,
+                    as_attachment=False
+                )
+            else:
+                return jsonify({'error': 'Failed to decrypt image'}), 500
+        else:
+            # Serve unencrypted image directly
+            return send_file(image_path)
+            
+    except Exception as e:
+        logger.error(f"Error serving image: {e}", exc_info=True)
+        return jsonify({'error': 'Failed to serve image'}), 500
+
+
+@app.route('/api/account', methods=['DELETE'])
+@login_required
+def delete_account():
+    """
+    Delete user account with GDPR compliance
+    Implements soft delete initially, then permanent deletion after 30 days
+    Requirements: 11.5
+    """
+    try:
+        user_id = current_user.id
+        user_email = current_user.email
+        
+        # Mark account for deletion (soft delete)
+        current_user.is_active = False
+        current_user.email = f"deleted_{user_id}_{current_user.email}"  # Anonymize email
+        db.session.commit()
+        
+        # Schedule permanent deletion after 30 days
+        # In production, this would be handled by a background job (Celery, etc.)
+        # For now, we'll create a deletion record
+        deletion_date = datetime.utcnow() + timedelta(days=30)
+        
+        # Store deletion request in MongoDB for tracking
+        mongo_db = get_mongo_db()
+        deletion_collection = mongo_db['account_deletions']
+        
+        deletion_record = {
+            'user_id': user_id,
+            'email': user_email,
+            'requested_at': datetime.utcnow(),
+            'scheduled_deletion_date': deletion_date,
+            'status': 'pending'
+        }
+        
+        deletion_collection.insert_one(deletion_record)
+        
+        logger.info(f"Account deletion requested for user_id={user_id}, scheduled for {deletion_date.isoformat()}")
+        
+        # Log out the user
+        logout_user()
+        
+        return jsonify({
+            'success': True,
+            'message': 'Account marked for deletion. Data will be permanently deleted in 30 days.',
+            'deletion_date': deletion_date.isoformat()
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error deleting account: {e}", exc_info=True)
+        return jsonify({'error': 'Failed to delete account'}), 500
+
+
+@app.route('/api/admin/process-deletions', methods=['POST'])
+@login_required
+def process_account_deletions():
+    """
+    Process pending account deletions (admin/system endpoint)
+    Permanently deletes data for accounts past their 30-day grace period
+    Requirements: 11.5
+    """
+    try:
+        mongo_db = get_mongo_db()
+        deletion_collection = mongo_db['account_deletions']
+        detection_meta_collection = mongo_db['detection_meta']
+        feedback_collection = mongo_db['feedback']
+        
+        # Find accounts ready for permanent deletion
+        now = datetime.utcnow()
+        pending_deletions = deletion_collection.find({
+            'status': 'pending',
+            'scheduled_deletion_date': {'$lte': now}
+        })
+        
+        deleted_count = 0
+        
+        for deletion in pending_deletions:
+            user_id = deletion['user_id']
+            
+            try:
+                # Delete from PostgreSQL
+                user = User.query.get(user_id)
+                if user:
+                    # Get all scans to delete associated images
+                    scans = Scan.query.filter_by(user_id=user_id).all()
+                    
+                    # Delete uploaded images
+                    for scan in scans:
+                        if scan.image_path and os.path.exists(scan.image_path):
+                            try:
+                                os.remove(scan.image_path)
+                                logger.info(f"Deleted image: {scan.image_path}")
+                            except Exception as e:
+                                logger.error(f"Error deleting image {scan.image_path}: {e}")
+                    
+                    # Delete feedbacks (cascade should handle this, but explicit is better)
+                    Feedback.query.filter_by(user_id=user_id).delete()
+                    
+                    # Delete scans (cascade should handle this)
+                    Scan.query.filter_by(user_id=user_id).delete()
+                    
+                    # Delete user
+                    db.session.delete(user)
+                    db.session.commit()
+                    
+                    logger.info(f"Deleted user {user_id} from PostgreSQL")
+                
+                # Delete from MongoDB
+                # Delete detection metadata
+                detection_meta_collection.delete_many({'user_id': user_id})
+                
+                # Delete feedback documents
+                feedback_collection.delete_many({'user_id': user_id})
+                
+                logger.info(f"Deleted user {user_id} data from MongoDB")
+                
+                # Update deletion record status
+                deletion_collection.update_one(
+                    {'_id': deletion['_id']},
+                    {'$set': {
+                        'status': 'completed',
+                        'completed_at': now
+                    }}
+                )
+                
+                deleted_count += 1
+                
+            except Exception as e:
+                logger.error(f"Error processing deletion for user {user_id}: {e}", exc_info=True)
+                # Mark as failed
+                deletion_collection.update_one(
+                    {'_id': deletion['_id']},
+                    {'$set': {
+                        'status': 'failed',
+                        'error': str(e),
+                        'failed_at': now
+                    }}
+                )
+        
+        return jsonify({
+            'success': True,
+            'message': f'Processed {deleted_count} account deletions',
+            'deleted_count': deleted_count
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error processing account deletions: {e}", exc_info=True)
+        return jsonify({'error': 'Failed to process deletions'}), 500
+
 @app.route('/')
 @login_required
 def index():
@@ -896,6 +1147,7 @@ def analyze():
     from confidence_utils import classify_confidence, should_request_feedback
     from ipm_engine import get_recommendations, get_pest_by_name
     from db_sync import sync_detection_metadata
+    from encryption_utils import encrypt_image
     
     try:
         # Check if file was uploaded
@@ -928,12 +1180,21 @@ def analyze():
             else:
                 return jsonify({'error': 'Invalid file format'}), 400
 
-        # Call AI microservice
+        # Call AI microservice (before encryption)
         ai_result = call_ai_service(filepath)
         
         # Check if AI service call was successful
         if not ai_result.get('success'):
             return jsonify({'error': ai_result.get('error', 'AI service error')}), 500
+        
+        # Encrypt the image after AI processing
+        # Requirements: 11.4 - Image encryption at rest
+        encrypted_path = encrypt_image(filepath)
+        if encrypted_path:
+            filepath = encrypted_path
+            logger.info(f"Image encrypted and stored at {encrypted_path}")
+        else:
+            logger.warning(f"Failed to encrypt image, storing unencrypted")
         
         # Extract AI response data
         pest_label = ai_result.get('pest_label')
@@ -943,6 +1204,8 @@ def analyze():
         processing_time_ms = ai_result.get('processing_time_ms')
         timing_breakdown = ai_result.get('timing_breakdown', {})
         fallback_used = ai_result.get('fallback_used', False)
+        model_version = ai_result.get('model_version', 'v1.0.0')
+        model_details = ai_result.get('model_details', {})
         
         # Classify confidence level
         confidence_level = classify_confidence(confidence)
@@ -976,7 +1239,8 @@ def analyze():
                 language=lang
             )
         
-        # Store scan in PostgreSQL
+        # Store scan in PostgreSQL with model version
+        # Requirements: 9.4 - Model version logging
         scan = Scan(
             user_id=current_user.id,
             image_path=filepath,
@@ -984,7 +1248,7 @@ def analyze():
             pest_scientific=pest_scientific_name,
             confidence=confidence,
             status='identified',
-            model_version=timing_breakdown.get('primary_model', 'v1.0.0')
+            model_version=model_version
         )
         
         db.session.add(scan)
@@ -1000,9 +1264,13 @@ def analyze():
         }
         
         # Prepare model details for MongoDB
-        model_details = {
-            'primary_model': 'EfficientNet-B0',
-            'primary_version': 'v2.1.0',
+        # Use model details from AI service response
+        # Requirements: 9.4 - Model version logging
+        model_details_mongo = {
+            'primary_model': model_details.get('primary_model', 'EfficientNet-B0'),
+            'primary_version': model_details.get('primary_version', model_version),
+            'fallback_model': model_details.get('fallback_model', 'ResNet-50'),
+            'fallback_version': model_details.get('fallback_version', 'v1.5.0'),
             'fallback_used': fallback_used,
             'preprocessing_time_ms': timing_breakdown.get('preprocessing_ms', 0),
             'inference_time_ms': timing_breakdown.get('primary_inference_ms', 0) + timing_breakdown.get('fallback_inference_ms', 0),
@@ -1017,7 +1285,7 @@ def analyze():
             confidence=confidence,
             alternatives=alternatives,
             image_info=image_info,
-            model_details=model_details,
+            model_details=model_details_mongo,
             location=None  # TODO: Add location data if available
         )
         
@@ -1092,6 +1360,246 @@ def get_stats():
         'pest_trends': pest_trends
     })
 
+
+# Analytics and Outbreak Detection Endpoints
+
+@app.route('/api/analytics/trends')
+def get_analytics_trends():
+    """
+    Get pest trend data from analytics collection
+    Query parameters:
+        - region: Filter by region (optional)
+        - pest: Filter by pest type (optional)
+        - period: Time period - YYYY-MM or number of months (optional)
+    
+    Requirements: 12.2
+    """
+    from analytics_engine import get_pest_trends
+    
+    try:
+        # Get query parameters
+        region = request.args.get('region')
+        pest = request.args.get('pest')
+        period = request.args.get('period')
+        
+        # Convert period to int if it's a number
+        if period and period.isdigit():
+            period = int(period)
+        
+        # Query trends
+        trends = get_pest_trends(region=region, pest=pest, period=period)
+        
+        return jsonify({
+            'success': True,
+            'trends': trends,
+            'filters': {
+                'region': region,
+                'pest': pest,
+                'period': period
+            },
+            'count': len(trends)
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error in analytics trends endpoint: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/analytics/outbreaks')
+def get_outbreak_alerts():
+    """
+    Get active outbreak alerts
+    Query parameters:
+        - region: Filter by region (optional)
+    
+    Requirements: 12.3, 12.4
+    """
+    from analytics_engine import get_active_outbreak_alerts
+    
+    try:
+        # Get query parameters
+        region = request.args.get('region')
+        
+        # Get active alerts
+        alerts = get_active_outbreak_alerts(region=region)
+        
+        return jsonify({
+            'success': True,
+            'alerts': alerts,
+            'count': len(alerts),
+            'region_filter': region
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error in outbreak alerts endpoint: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/admin/analytics/aggregate', methods=['POST'])
+@login_required
+def trigger_analytics_aggregation():
+    """
+    Manually trigger analytics aggregation task
+    Admin endpoint for testing or manual execution
+    
+    Requirements: 12.1
+    """
+    from analytics_engine import aggregate_detection_data
+    
+    try:
+        result = aggregate_detection_data()
+        return jsonify(result), 200
+        
+    except Exception as e:
+        logger.error(f"Error triggering analytics aggregation: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/admin/analytics/detect-outbreaks', methods=['POST'])
+@login_required
+def trigger_outbreak_detection():
+    """
+    Manually trigger outbreak detection task
+    Admin endpoint for testing or manual execution
+    
+    Requirements: 12.3
+    """
+    from analytics_engine import detect_outbreaks
+    
+    try:
+        alerts = detect_outbreaks()
+        return jsonify({
+            'success': True,
+            'alerts': alerts,
+            'count': len(alerts)
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error triggering outbreak detection: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/admin/model-performance', methods=['GET'])
+@login_required
+def get_model_performance():
+    """
+    Get model performance metrics grouped by model version
+    Admin endpoint for tracking model accuracy and improvements
+    
+    Returns performance statistics for each model version including:
+    - Total detections
+    - Average confidence
+    - Feedback correction rate
+    - Most common pests detected
+    
+    Query Parameters:
+        version (optional): Filter by specific model version
+        start_date (optional): Filter by start date (YYYY-MM-DD)
+        end_date (optional): Filter by end date (YYYY-MM-DD)
+    
+    Requirements: 9.4, 9.5
+    """
+    try:
+        # Get query parameters
+        version_filter = request.args.get('version')
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        
+        # Build base query
+        query = db.session.query(
+            Scan.model_version,
+            db.func.count(Scan.id).label('total_detections'),
+            db.func.avg(Scan.confidence).label('avg_confidence'),
+            db.func.count(db.case((Scan.status == 'corrected', 1))).label('corrections')
+        ).filter(Scan.model_version.isnot(None))
+        
+        # Apply filters
+        if version_filter:
+            query = query.filter(Scan.model_version == version_filter)
+        
+        if start_date:
+            try:
+                start_dt = datetime.strptime(start_date, '%Y-%m-%d')
+                query = query.filter(Scan.created_at >= start_dt)
+            except ValueError:
+                return jsonify({'error': 'Invalid start_date format. Use YYYY-MM-DD'}), 400
+        
+        if end_date:
+            try:
+                end_dt = datetime.strptime(end_date, '%Y-%m-%d')
+                # Add one day to include the entire end date
+                end_dt = end_dt + timedelta(days=1)
+                query = query.filter(Scan.created_at < end_dt)
+            except ValueError:
+                return jsonify({'error': 'Invalid end_date format. Use YYYY-MM-DD'}), 400
+        
+        # Group by model version
+        query = query.group_by(Scan.model_version)
+        
+        # Execute query
+        results = query.all()
+        
+        # Format results
+        performance_data = []
+        for row in results:
+            model_version = row.model_version
+            total_detections = row.total_detections
+            avg_confidence = float(row.avg_confidence) if row.avg_confidence else 0.0
+            corrections = row.corrections
+            
+            # Calculate correction rate (lower is better)
+            correction_rate = (corrections / total_detections * 100) if total_detections > 0 else 0.0
+            
+            # Calculate accuracy estimate (100% - correction_rate)
+            estimated_accuracy = 100.0 - correction_rate
+            
+            # Get most common pests for this model version
+            pest_query = db.session.query(
+                Scan.pest_identified,
+                db.func.count(Scan.id).label('count')
+            ).filter(
+                Scan.model_version == model_version,
+                Scan.pest_identified.isnot(None)
+            )
+            
+            if start_date:
+                pest_query = pest_query.filter(Scan.created_at >= datetime.strptime(start_date, '%Y-%m-%d'))
+            if end_date:
+                pest_query = pest_query.filter(Scan.created_at < datetime.strptime(end_date, '%Y-%m-%d') + timedelta(days=1))
+            
+            top_pests = pest_query.group_by(Scan.pest_identified).order_by(db.desc('count')).limit(5).all()
+            
+            performance_data.append({
+                'model_version': model_version,
+                'total_detections': total_detections,
+                'avg_confidence': round(avg_confidence, 4),
+                'corrections': corrections,
+                'correction_rate': round(correction_rate, 2),
+                'estimated_accuracy': round(estimated_accuracy, 2),
+                'top_pests': [
+                    {'pest': pest, 'count': count}
+                    for pest, count in top_pests
+                ]
+            })
+        
+        # Sort by model version (newest first)
+        performance_data.sort(key=lambda x: x['model_version'], reverse=True)
+        
+        return jsonify({
+            'success': True,
+            'performance': performance_data,
+            'filters': {
+                'version': version_filter,
+                'start_date': start_date,
+                'end_date': end_date
+            }
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error getting model performance: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
 if __name__ == '__main__':
     # Initialize database
     with app.app_context():
@@ -1145,4 +1653,5 @@ if __name__ == '__main__':
             db.session.commit()
             print("Database initialized with sample pests")
 
-    app.run(debug=True, host='0.0.0.0', port=5001)
+    # Run with SocketIO support
+    socketio.run(app, debug=True, host='0.0.0.0', port=5001, allow_unsafe_werkzeug=True)

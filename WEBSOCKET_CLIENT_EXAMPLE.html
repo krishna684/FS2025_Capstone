@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AGBOT Outbreak Alerts - WebSocket Demo</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c5f2d;
+            margin-bottom: 10px;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        .status.connected {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .status.disconnected {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .alert {
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+            border-left: 5px solid;
+            animation: slideIn 0.3s ease-out;
+        }
+        .alert.high {
+            background-color: #f8d7da;
+            border-color: #dc3545;
+        }
+        .alert.moderate {
+            background-color: #fff3cd;
+            border-color: #ffc107;
+        }
+        .alert-title {
+            font-weight: bold;
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+        .alert-details {
+            font-size: 14px;
+            color: #666;
+        }
+        .controls {
+            margin: 20px 0;
+        }
+        button {
+            padding: 10px 20px;
+            margin: 5px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        button.primary {
+            background-color: #2c5f2d;
+            color: white;
+        }
+        button.secondary {
+            background-color: #6c757d;
+            color: white;
+        }
+        button:hover {
+            opacity: 0.8;
+        }
+        input {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .log {
+            background-color: #f8f9fa;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 5px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .log-entry {
+            margin: 5px 0;
+            padding: 5px;
+            border-bottom: 1px solid #dee2e6;
+        }
+        @keyframes slideIn {
+            from {
+                transform: translateX(-100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌾 AGBOT Outbreak Alert System</h1>
+        <p>Real-time pest outbreak notifications via WebSocket</p>
+
+        <div id="status" class="status disconnected">
+            Status: Disconnected
+        </div>
+
+        <div class="controls">
+            <h3>Connection Controls</h3>
+            <button class="primary" onclick="connect()">Connect</button>
+            <button class="secondary" onclick="disconnect()">Disconnect</button>
+        </div>
+
+        <div class="controls">
+            <h3>Region Subscription</h3>
+            <input type="text" id="regionInput" placeholder="Enter region (e.g., East_Africa)" value="East_Africa">
+            <button class="primary" onclick="subscribeRegion()">Subscribe</button>
+            <button class="secondary" onclick="unsubscribeRegion()">Unsubscribe</button>
+        </div>
+
+        <div class="controls">
+            <h3>Test Alert</h3>
+            <button class="primary" onclick="simulateAlert()">Simulate Outbreak Alert</button>
+        </div>
+
+        <div id="alerts">
+            <h3>Active Alerts</h3>
+            <div id="alertsList">
+                <p style="color: #999;">No active alerts</p>
+            </div>
+        </div>
+
+        <div class="log">
+            <h3>Event Log</h3>
+            <div id="logEntries"></div>
+        </div>
+    </div>
+
+    <script>
+        let socket = null;
+        let currentRegion = null;
+
+        function log(message, type = 'info') {
+            const logEntries = document.getElementById('logEntries');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            const timestamp = new Date().toLocaleTimeString();
+            entry.innerHTML = `<strong>[${timestamp}]</strong> ${message}`;
+            logEntries.insertBefore(entry, logEntries.firstChild);
+        }
+
+        function updateStatus(connected) {
+            const statusDiv = document.getElementById('status');
+            if (connected) {
+                statusDiv.className = 'status connected';
+                statusDiv.textContent = 'Status: Connected';
+            } else {
+                statusDiv.className = 'status disconnected';
+                statusDiv.textContent = 'Status: Disconnected';
+            }
+        }
+
+        function connect() {
+            if (socket && socket.connected) {
+                log('Already connected', 'warning');
+                return;
+            }
+
+            // Connect to the /alerts namespace
+            socket = io('/alerts', {
+                transports: ['websocket', 'polling']
+            });
+
+            // Connection event
+            socket.on('connect', () => {
+                log('✓ Connected to outbreak alert system', 'success');
+                updateStatus(true);
+            });
+
+            // Disconnection event
+            socket.on('disconnect', () => {
+                log('✗ Disconnected from outbreak alert system', 'error');
+                updateStatus(false);
+            });
+
+            // Connection status event
+            socket.on('connection_status', (data) => {
+                log(`Connection status: ${data.message}`);
+                if (data.region) {
+                    currentRegion = data.region;
+                    log(`Automatically subscribed to region: ${data.region}`);
+                }
+            });
+
+            // Outbreak alert event
+            socket.on('outbreak_alert', (alert) => {
+                log(`🚨 OUTBREAK ALERT: ${alert.pest} in ${alert.region}`, 'alert');
+                displayAlert(alert);
+            });
+
+            // Subscription status event
+            socket.on('subscription_status', (data) => {
+                log(`Subscription ${data.status}: ${data.region}`);
+            });
+
+            // System message event
+            socket.on('system_message', (msg) => {
+                log(`System: ${msg.message}`, msg.severity);
+            });
+
+            // Error event
+            socket.on('error', (error) => {
+                log(`Error: ${error}`, 'error');
+            });
+        }
+
+        function disconnect() {
+            if (socket) {
+                socket.disconnect();
+                socket = null;
+                log('Disconnected by user');
+                updateStatus(false);
+            }
+        }
+
+        function subscribeRegion() {
+            if (!socket || !socket.connected) {
+                log('Not connected. Please connect first.', 'error');
+                return;
+            }
+
+            const region = document.getElementById('regionInput').value.trim();
+            if (!region) {
+                log('Please enter a region name', 'error');
+                return;
+            }
+
+            socket.emit('subscribe_region', { region: region });
+            currentRegion = region;
+            log(`Subscribing to region: ${region}`);
+        }
+
+        function unsubscribeRegion() {
+            if (!socket || !socket.connected) {
+                log('Not connected. Please connect first.', 'error');
+                return;
+            }
+
+            const region = document.getElementById('regionInput').value.trim();
+            if (!region) {
+                log('Please enter a region name', 'error');
+                return;
+            }
+
+            socket.emit('unsubscribe_region', { region: region });
+            log(`Unsubscribing from region: ${region}`);
+        }
+
+        function displayAlert(alert) {
+            const alertsList = document.getElementById('alertsList');
+            
+            // Clear "no alerts" message
+            if (alertsList.querySelector('p')) {
+                alertsList.innerHTML = '';
+            }
+
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert ${alert.severity}`;
+            
+            alertDiv.innerHTML = `
+                <div class="alert-title">
+                    🚨 ${alert.pest} Outbreak in ${alert.region}
+                </div>
+                <div class="alert-details">
+                    <strong>Severity:</strong> ${alert.severity.toUpperCase()}<br>
+                    <strong>Current Count:</strong> ${alert.current_count}<br>
+                    <strong>Historical Average:</strong> ${alert.historical_average}<br>
+                    <strong>Threshold Exceeded:</strong> ${alert.threshold_exceeded}x<br>
+                    <strong>Time:</strong> ${new Date(alert.alert_issued).toLocaleString()}<br>
+                    <strong>Message:</strong> ${alert.message}
+                </div>
+            `;
+
+            alertsList.insertBefore(alertDiv, alertsList.firstChild);
+
+            // Show browser notification if permitted
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification('Pest Outbreak Alert', {
+                    body: alert.message,
+                    icon: '🚨'
+                });
+            }
+        }
+
+        function simulateAlert() {
+            // Simulate an outbreak alert for testing
+            const testAlert = {
+                type: 'outbreak_alert',
+                pest: 'Fall Armyworm',
+                region: currentRegion || 'East_Africa',
+                current_count: 25,
+                historical_average: 10.5,
+                threshold_exceeded: 2.38,
+                alert_issued: new Date().toISOString(),
+                severity: 'high',
+                message: `Outbreak alert: Fall Armyworm detected in ${currentRegion || 'East_Africa'} at 2.4x normal levels`
+            };
+
+            log('Simulating outbreak alert for testing');
+            displayAlert(testAlert);
+        }
+
+        // Request notification permission on page load
+        if ('Notification' in window && Notification.permission === 'default') {
+            Notification.requestPermission();
+        }
+
+        // Auto-connect on page load
+        window.addEventListener('load', () => {
+            log('Page loaded. Click "Connect" to start receiving alerts.');
+        });
+    </script>
+</body>
+</html>

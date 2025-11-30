@@ -415,6 +415,9 @@
 
 
 
+
+
+
   - Add CSS media queries for screen widths < 768px
   - Implement mobile-first layout with flexbox/grid
   - Increase touch target sizes to minimum 44×44px
@@ -425,11 +428,26 @@
 - [ ]* 10.1 Write property test for responsive interface
   - **Property 26: Responsive interface**
   - **Validates: Requirements 8.1**
+-
 
-- [ ] 11. Checkpoint - Ensure all tests pass
+- [x] 11. Checkpoint - Ensure all tests pass
+
+
+
+
+
+
   - Ensure all tests pass, ask the user if questions arise.
+-
 
-- [ ] 12. Implement security enhancements
+- [x] 12. Implement security enhancements
+
+
+
+
+
+
+
   - Migrate password hashing from Werkzeug to Argon2
   - Install argon2-cffi library
   - Update `User.set_password()` to use argon2.PasswordHasher
@@ -440,7 +458,8 @@
   - **Property 39: Password hashing**
   - **Validates: Requirements 11.1**
 
-- [ ] 12.2 Implement JWT token with 24-hour expiration
+- [x] 12.2 Implement JWT token with 24-hour expiration
+
   - Verify JWT token generation includes exp claim set to 24 hours from issue time
   - Update login endpoint to set expiration correctly
   - Implement token refresh endpoint (optional)
@@ -450,7 +469,8 @@
   - **Property 40: JWT token issuance**
   - **Validates: Requirements 11.2**
 
-- [ ] 12.3 Implement HTTPS enforcement
+- [x] 12.3 Implement HTTPS enforcement
+
   - Add Flask-Talisman for HTTPS enforcement
   - Configure to require TLS 1.2 or higher
   - Add HSTS headers
@@ -461,7 +481,8 @@
   - **Property 41: HTTPS enforcement**
   - **Validates: Requirements 11.3**
 
-- [ ] 12.4 Implement image encryption at rest
+- [x] 12.4 Implement image encryption at rest
+
   - Install cryptography library
   - Create encryption utility using AES-256
   - Encrypt images before saving to disk
@@ -473,7 +494,8 @@
   - **Property 42: Image encryption at rest**
   - **Validates: Requirements 11.4**
 
-- [ ] 12.5 Implement account deletion with GDPR compliance
+- [x] 12.5 Implement account deletion with GDPR compliance
+
   - Create `DELETE /api/account` endpoint
   - Mark account for deletion (soft delete initially)
   - Schedule background job to permanently delete data after 30 days
@@ -486,8 +508,13 @@
 - [ ]* 12.6 Write property test for data deletion compliance
   - **Property 43: Data deletion compliance**
   - **Validates: Requirements 11.5**
+-
 
-- [ ] 13. Implement analytics and outbreak detection
+- [x] 13. Implement analytics and outbreak detection
+
+
+
+
   - Create background task to aggregate detection data
   - Group by region and pest type
   - Calculate occurrence counts per month
@@ -498,7 +525,14 @@
   - **Property 44: Location-based aggregation**
   - **Validates: Requirements 12.1**
 
-- [ ] 13.2 Implement pest trend query endpoint
+- [x] 13.2 Implement pest trend query endpoint
+
+
+
+
+
+
+
   - Create `GET /api/analytics/trends?region=X&pest=Y&period=Z` endpoint
   - Query MongoDB analytics collection
   - Group by pest_type, region, time_period
@@ -508,8 +542,14 @@
 - [ ]* 13.3 Write property test for trend query grouping
   - **Property 45: Trend query grouping**
   - **Validates: Requirements 12.2**
+-
 
-- [ ] 13.4 Implement outbreak detection algorithm
+- [x] 13.4 Implement outbreak detection algorithm
+
+
+
+
+
   - Calculate historical average occurrences per pest per region
   - Compare current month occurrences to historical average
   - If current > 1.5 × historical, generate outbreak alert
@@ -520,7 +560,10 @@
   - **Property 46: Outbreak alert generation**
   - **Validates: Requirements 12.3**
 
-- [ ] 13.6 Implement WebSocket notifications for outbreak alerts
+- [x] 13.6 Implement WebSocket notifications for outbreak alerts
+
+
+
   - Install Flask-SocketIO and Redis for WebSocket support
   - Create WebSocket namespace `/alerts`
   - When outbreak alert generated, emit to all connected clients in affected region
@@ -531,7 +574,10 @@
   - **Property 47: WebSocket alert delivery**
   - **Validates: Requirements 12.4**
 
-- [ ] 14. Implement model versioning and tracking
+- [x] 14. Implement model versioning and tracking
+
+
+
   - Add model_version field to AI service configuration
   - Include model_version in AI service response
   - Store model_version in PostgreSQL scans.model_version field
@@ -543,6 +589,7 @@
   - **Validates: Requirements 9.4**
 
 - [ ] 15. Implement performance monitoring
+
   - Add logging for database query times
   - Log warning when query exceeds 500ms
   - Add logging for AI inference times
@@ -554,6 +601,7 @@
   - **Validates: Requirements 10.4**
 
 - [ ] 16. Create Docker Compose setup for local development
+
   - Create docker-compose.yml with services: flask-backend, ai-service, postgres, mongodb, redis
   - Configure networking between containers
   - Set up volume mounts for code hot-reloading
@@ -561,6 +609,7 @@
   - Document startup instructions in README
 
 - [ ] 17. Create deployment documentation
+
   - Document AWS infrastructure setup (ECS, EC2, RDS, MongoDB Atlas)
   - Document environment variables and secrets management
   - Document CI/CD pipeline setup with GitHub Actions
@@ -568,4 +617,5 @@
   - Document backup and disaster recovery procedures
 
 - [ ] 18. Final Checkpoint - Ensure all tests pass
+
   - Ensure all tests pass, ask the user if questions arise.

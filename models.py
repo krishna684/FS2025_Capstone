@@ -1,7 +1,11 @@
 from flask_login import UserMixin
-from werkzeug.security import generate_password_hash, check_password_hash
+from argon2 import PasswordHasher
+from argon2.exceptions import VerifyMismatchError, InvalidHash
 from datetime import datetime
 from database import db
+
+# Initialize Argon2 password hasher
+ph = PasswordHasher()
 
 class User(UserMixin, db.Model):
     """User model for authentication"""
@@ -34,12 +38,16 @@ class User(UserMixin, db.Model):
     feedbacks = db.relationship('Feedback', backref='user', lazy='dynamic', cascade='all, delete-orphan')
 
     def set_password(self, password):
-        """Hash and set password"""
-        self.password_hash = generate_password_hash(password)
+        """Hash and set password using Argon2"""
+        self.password_hash = ph.hash(password)
 
     def check_password(self, password):
-        """Verify password"""
-        return check_password_hash(self.password_hash, password)
+        """Verify password using Argon2"""
+        try:
+            ph.verify(self.password_hash, password)
+            return True
+        except (VerifyMismatchError, InvalidHash):
+            return False
 
     def to_dict(self):
         """Convert user to dictionary"""

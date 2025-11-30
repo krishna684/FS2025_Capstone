@@ -21,6 +21,9 @@ def test_postgresql():
     logger.info("=" * 60)
     
     with app.app_context():
+        # Create tables if they don't exist
+        db.create_all()
+        
         # Test user query
         users = User.query.all()
         logger.info(f"✓ Users in database: {len(users)}")

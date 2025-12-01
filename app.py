@@ -9,6 +9,7 @@ import json
 import os
 from werkzeug.utils import secure_filename
 from models import db, User, Scan, Feedback, PestDatabase
+from sqlalchemy.exc import IntegrityError
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-here'  # Change this in production
@@ -184,21 +185,32 @@ def register():
     if request.method == 'POST':
         name = request.form.get('name')
         email = request.form.get('email')
-        phone = request.form.get('phone')
+        raw_phone = request.form.get('phone', '').strip()
+        phone = raw_phone or None  # empty string -> None
         location = request.form.get('location')
         password = request.form.get('password')
 
-        # Check if user exists
+        # Check if user exists by email
         if User.query.filter_by(email=email).first():
             flash('Email already registered', 'danger')
+            return redirect(url_for('register'))
+
+        # Check if user exists by phone (if provided)
+        if phone and User.query.filter_by(phone=phone).first():
+            flash('Phone number already registered', 'danger')
             return redirect(url_for('register'))
 
         # Create new user
         user = User(name=name, email=email, phone=phone, location=location)
         user.set_password(password)
 
-        db.session.add(user)
-        db.session.commit()
+        try:
+            db.session.add(user)
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            flash('Email or phone is already in use.', 'danger')
+            return redirect(url_for('register'))
 
         flash('Account created successfully! Please log in.', 'success')
         return redirect(url_for('login'))

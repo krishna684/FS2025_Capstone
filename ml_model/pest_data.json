@@ -1,0 +1,499 @@
+{
+  "pests": [
+    {
+      "id": 0,
+      "name": "Aphids",
+      "scientific_name": "Aphidoidea",
+      "description": "Small, soft-bodied insects that cluster on new growth and undersides of leaves. They suck plant sap and excrete honeydew, which attracts sooty mold.",
+      "severity_level": "Moderate",
+      "affected_plants": ["Roses", "Tomatoes", "Peppers", "Beans", "Cabbage", "Lettuce", "Most vegetables and ornamentals"],
+      "symptoms": [
+        "Curling, yellowing, or distorted leaves",
+        "Sticky honeydew residue on leaves and stems",
+        "Black sooty mold growing on honeydew",
+        "Stunted plant growth and wilting",
+        "Clusters of small green, black, or white insects on new growth",
+        "Ants farming aphids on plant surfaces"
+      ],
+      "precautions": [
+        "Inspect new plants before introducing them to your garden",
+        "Encourage natural predators like ladybugs, lacewings, and parasitic wasps",
+        "Avoid over-fertilizing with nitrogen, which promotes soft growth aphids love",
+        "Use reflective mulch to disorient flying aphids",
+        "Plant companion plants like marigolds, chives, and garlic nearby",
+        "Maintain proper plant spacing for good air circulation"
+      ],
+      "remedies": [
+        "Blast aphids off with a strong stream of water from a hose",
+        "Apply insecticidal soap spray directly on aphid clusters",
+        "Use neem oil spray (2 tbsp per gallon of water) every 7-14 days",
+        "Release ladybugs or lacewing larvae as biological control",
+        "Apply diatomaceous earth around the base of plants",
+        "For severe infestations, use pyrethrin-based organic insecticide",
+        "Remove heavily infested plant parts and dispose of them"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "Whiteflies",
+      "scientific_name": "Aleyrodidae",
+      "description": "Tiny white-winged insects that congregate on leaf undersides. They feed on plant sap and can transmit viral diseases between plants.",
+      "severity_level": "Moderate to High",
+      "affected_plants": ["Tomatoes", "Cucumbers", "Squash", "Poinsettias", "Hibiscus", "Citrus", "Sweet potatoes"],
+      "symptoms": [
+        "Cloud of tiny white insects flying when plant is disturbed",
+        "Yellowing leaves that eventually drop",
+        "Sticky honeydew on leaf surfaces",
+        "White waxy residue on leaf undersides",
+        "Stunted and weakened plant growth",
+        "Sooty mold development on honeydew deposits"
+      ],
+      "precautions": [
+        "Use yellow sticky traps to monitor and reduce populations",
+        "Inspect transplants carefully before planting",
+        "Remove and destroy crop residues after harvest",
+        "Use reflective aluminum mulch to repel whiteflies",
+        "Avoid excessive nitrogen fertilization",
+        "Install fine mesh screening on greenhouse vents"
+      ],
+      "remedies": [
+        "Apply insecticidal soap spray targeting leaf undersides",
+        "Use neem oil as a foliar spray every 5-7 days",
+        "Introduce Encarsia formosa parasitic wasps for biological control",
+        "Vacuum adult whiteflies with a handheld vacuum in early morning",
+        "Apply horticultural oil to smother eggs and nymphs",
+        "Use systemic insecticides for severe greenhouse infestations",
+        "Alternate between different modes of action to prevent resistance"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "Spider Mites",
+      "scientific_name": "Tetranychidae",
+      "description": "Microscopic arachnids that pierce plant cells and suck out contents. They thrive in hot, dry conditions and can devastate plants rapidly.",
+      "severity_level": "High",
+      "affected_plants": ["Roses", "Tomatoes", "Strawberries", "Beans", "Cucumbers", "Houseplants", "Fruit trees"],
+      "symptoms": [
+        "Fine stippling or speckling on leaf surfaces (tiny yellow/white dots)",
+        "Fine silky webbing on leaf undersides and between stems",
+        "Leaves turning bronze, yellow, or brown",
+        "Leaf drop and defoliation in severe cases",
+        "Dried and crispy leaf edges",
+        "Reduced fruit size and quality"
+      ],
+      "precautions": [
+        "Keep plants well-watered; mites thrive in dry, stressed conditions",
+        "Mist plants regularly to increase humidity",
+        "Avoid broad-spectrum pesticides that kill mite predators",
+        "Quarantine new plants for 2 weeks before adding to collection",
+        "Keep garden area free of dust and debris",
+        "Encourage predatory mites (Phytoseiulus persimilis)"
+      ],
+      "remedies": [
+        "Spray plants with a strong jet of water to dislodge mites",
+        "Apply miticide or acaricide specifically designed for spider mites",
+        "Use neem oil spray every 3-5 days for 2-3 weeks",
+        "Release predatory mites for long-term biological control",
+        "Apply insecticidal soap thoroughly, covering all leaf surfaces",
+        "Prune and destroy heavily infested branches",
+        "Use sulfur-based sprays (avoid on sulfur-sensitive plants)"
+      ]
+    },
+    {
+      "id": 3,
+      "name": "Caterpillars",
+      "scientific_name": "Lepidoptera (larvae)",
+      "description": "Larvae of butterflies and moths that chew through leaves, stems, and fruits. Some species like armyworms and hornworms can cause severe defoliation overnight.",
+      "severity_level": "Moderate to High",
+      "affected_plants": ["Cabbage", "Broccoli", "Tomatoes", "Corn", "Lettuce", "Apple trees", "Most garden plants"],
+      "symptoms": [
+        "Large irregular holes chewed in leaves",
+        "Skeletonized leaves with only veins remaining",
+        "Dark green or black droppings (frass) on leaves",
+        "Rolled or webbed leaves sheltering larvae",
+        "Chewed fruit surfaces with bore holes",
+        "Defoliated stems and branches"
+      ],
+      "precautions": [
+        "Use floating row covers to prevent moth egg-laying",
+        "Encourage birds, parasitic wasps, and other natural predators",
+        "Hand-pick caterpillars during regular garden inspections",
+        "Plant trap crops to divert caterpillars from main crops",
+        "Use pheromone traps to monitor adult moth populations",
+        "Practice crop rotation to break pest cycles"
+      ],
+      "remedies": [
+        "Apply Bacillus thuringiensis (Bt) spray — organic and highly effective",
+        "Hand-pick caterpillars and drop them in soapy water",
+        "Use spinosad-based organic insecticide",
+        "Apply neem oil to deter feeding and disrupt growth",
+        "Release Trichogramma wasps to parasitize caterpillar eggs",
+        "Use diatomaceous earth around plant bases",
+        "For severe infestations, apply carbaryl or permethrin (non-organic)"
+      ]
+    },
+    {
+      "id": 4,
+      "name": "Mealybugs",
+      "scientific_name": "Pseudococcidae",
+      "description": "Soft-bodied, white, cottony insects that feed on plant sap. They hide in leaf axils and crevices, making them difficult to detect and treat.",
+      "severity_level": "Moderate",
+      "affected_plants": ["Citrus", "Orchids", "Succulents", "Ficus", "Grapes", "Houseplants", "Tropical plants"],
+      "symptoms": [
+        "White, cottony masses on stems, leaf joints, and undersides",
+        "Sticky honeydew on plant surfaces",
+        "Yellowing and wilting of affected leaves",
+        "Sooty mold growing on honeydew",
+        "Stunted growth and leaf drop",
+        "Deformed new growth and flowers"
+      ],
+      "precautions": [
+        "Inspect new plants thoroughly before purchase",
+        "Quarantine new plants for 2-3 weeks",
+        "Avoid over-watering and over-fertilizing",
+        "Keep plants clean and remove dead foliage",
+        "Improve air circulation around plants",
+        "Monitor plants regularly, especially in warm months"
+      ],
+      "remedies": [
+        "Dab individual mealybugs with rubbing alcohol using a cotton swab",
+        "Apply insecticidal soap spray, ensuring coverage in crevices",
+        "Use neem oil spray every 7-10 days",
+        "Release Cryptolaemus montrouzieri (mealybug destroyer ladybugs)",
+        "Apply systemic insecticide for severe root mealybug infestations",
+        "Prune heavily infested stems and dispose properly",
+        "Use horticultural oil to smother eggs and crawlers"
+      ]
+    },
+    {
+      "id": 5,
+      "name": "Thrips",
+      "scientific_name": "Thysanoptera",
+      "description": "Tiny, slender insects that rasp plant tissue and feed on cell contents. They can transmit devastating plant viruses like Tomato Spotted Wilt Virus.",
+      "severity_level": "High",
+      "affected_plants": ["Onions", "Roses", "Gladiolus", "Tomatoes", "Peppers", "Beans", "Strawberries"],
+      "symptoms": [
+        "Silvery or bronze streaks on leaves",
+        "Distorted, curled, or scarred leaves and petals",
+        "Black specks of excrement on leaf surfaces",
+        "Stunted growth and flower bud damage",
+        "Pitted or scarred fruit surfaces",
+        "Viral disease symptoms (ring spots, wilting)"
+      ],
+      "precautions": [
+        "Use blue or yellow sticky traps for monitoring",
+        "Remove weeds that serve as thrips breeding grounds",
+        "Mulch around plants to reduce thrips pupation in soil",
+        "Avoid planting susceptible crops near onion fields",
+        "Spray plants with water regularly to dislodge thrips",
+        "Encourage predatory insects like minute pirate bugs"
+      ],
+      "remedies": [
+        "Apply spinosad-based insecticide (very effective against thrips)",
+        "Use insecticidal soap with thorough coverage",
+        "Apply neem oil spray every 5-7 days",
+        "Release predatory mites (Amblyseius cucumeris) or minute pirate bugs",
+        "Use systemic insecticides for persistent infestations",
+        "Remove and destroy heavily infested plant material",
+        "Apply diatomaceous earth to soil surface to kill pupae"
+      ]
+    },
+    {
+      "id": 6,
+      "name": "Scale Insects",
+      "scientific_name": "Coccoidea",
+      "description": "Immobile, armored or soft-bodied insects that attach to stems and leaves. They blend in with bark and are often mistaken for natural bumps on the plant.",
+      "severity_level": "Moderate",
+      "affected_plants": ["Citrus", "Magnolia", "Holly", "Ferns", "Orchids", "Palms", "Fruit trees"],
+      "symptoms": [
+        "Small, brown or tan bumps on stems and leaf undersides",
+        "Sticky honeydew coating on leaves (soft scale)",
+        "Yellowing and premature leaf drop",
+        "Branch dieback in severe infestations",
+        "Sooty mold on honeydew deposits",
+        "Reduced vigor and poor fruit production"
+      ],
+      "precautions": [
+        "Inspect nursery stock before purchase",
+        "Prune and destroy infested branches promptly",
+        "Encourage natural enemies like parasitic wasps and lady beetles",
+        "Avoid excessive nitrogen fertilizer",
+        "Maintain plant health through proper watering and nutrition",
+        "Monitor plants in spring when crawlers are active"
+      ],
+      "remedies": [
+        "Apply horticultural oil during dormant season (for deciduous plants)",
+        "Scrape off scale with a soft brush or fingernail",
+        "Apply insecticidal soap when crawlers are active",
+        "Use systemic insecticide (imidacloprid) for severe cases",
+        "Release parasitic wasps (Aphytis species) for biological control",
+        "Apply neem oil spray to suffocate scale insects",
+        "Prune and destroy heavily infested branches"
+      ]
+    },
+    {
+      "id": 7,
+      "name": "Leaf Miners",
+      "scientific_name": "Various (Diptera, Lepidoptera, Hymenoptera)",
+      "description": "Larvae of various flies, moths, and sawflies that tunnel between leaf surfaces, creating distinctive winding trails or blotches visible on the leaf.",
+      "severity_level": "Low to Moderate",
+      "affected_plants": ["Spinach", "Beets", "Chard", "Citrus", "Tomatoes", "Chrysanthemums", "Columbine"],
+      "symptoms": [
+        "Serpentine (winding) white or light-colored trails in leaves",
+        "Blotch-shaped mines in leaf tissue",
+        "Leaves becoming papery thin in mined areas",
+        "Premature leaf drop in severe cases",
+        "Small puncture marks from adult feeding",
+        "Reduced photosynthesis and plant vigor"
+      ],
+      "precautions": [
+        "Use floating row covers to prevent adult flies from laying eggs",
+        "Remove and destroy affected leaves promptly",
+        "Encourage parasitic wasps that attack leaf miner larvae",
+        "Avoid broad-spectrum insecticides that kill natural enemies",
+        "Practice crop rotation",
+        "Clear garden debris at end of season"
+      ],
+      "remedies": [
+        "Remove and destroy mined leaves to eliminate larvae",
+        "Apply spinosad spray when adults are first seen",
+        "Use neem oil as a deterrent spray on new growth",
+        "Apply systemic insecticide for ornamental plants",
+        "Squish larvae inside the mines with your fingers",
+        "Release Diglyphus isaea parasitic wasps",
+        "Use sticky traps to monitor and capture adult miners"
+      ]
+    },
+    {
+      "id": 8,
+      "name": "Japanese Beetles",
+      "scientific_name": "Popillia japonica",
+      "description": "Metallic green and copper beetles that skeletonize leaves and damage flowers and fruit. Their grubs also damage lawns by feeding on grass roots.",
+      "severity_level": "High",
+      "affected_plants": ["Roses", "Grapes", "Linden trees", "Japanese maples", "Raspberries", "Beans", "Corn"],
+      "symptoms": [
+        "Skeletonized leaves (veins intact, tissue eaten away)",
+        "Chewed flower petals and buds",
+        "Brown patches in lawns from grub root damage",
+        "Metallic green-copper beetles visible on plants",
+        "Clusters of beetles feeding in groups",
+        "Damaged fruit with feeding scars"
+      ],
+      "precautions": [
+        "Apply milky spore disease to lawns to control grubs long-term",
+        "Use beneficial nematodes (Heterorhabditis) in soil for grub control",
+        "Avoid Japanese beetle traps near gardens (they attract more beetles)",
+        "Plant resistant varieties when possible",
+        "Hand-pick beetles in early morning when they are sluggish",
+        "Maintain healthy lawns to withstand grub damage"
+      ],
+      "remedies": [
+        "Hand-pick beetles and drop into soapy water",
+        "Apply neem oil spray to reduce feeding and egg-laying",
+        "Use carbaryl (Sevin) spray for severe infestations",
+        "Apply milky spore powder to lawns to kill grubs over 2-3 years",
+        "Release beneficial nematodes in late summer for grub control",
+        "Spray with pyrethrin-based insecticide for quick knockdown",
+        "Use row covers to protect high-value crops during beetle season"
+      ]
+    },
+    {
+      "id": 9,
+      "name": "Fungus Gnats",
+      "scientific_name": "Sciaridae",
+      "description": "Small, dark flies whose larvae feed on organic matter and plant roots in moist soil. Primarily a problem with houseplants and greenhouse plants.",
+      "severity_level": "Low",
+      "affected_plants": ["Houseplants", "Seedlings", "African violets", "Poinsettias", "Geraniums", "Herbs", "Greenhouse crops"],
+      "symptoms": [
+        "Small dark flies hovering around soil surface",
+        "Wilting or yellowing of seedlings and young plants",
+        "Slow growth despite adequate care",
+        "Root damage visible when plant is uprooted",
+        "Larvae visible as tiny white worms in moist soil",
+        "Loss of seedlings (damping off)"
+      ],
+      "precautions": [
+        "Allow soil surface to dry between waterings",
+        "Use well-draining potting mix with perlite",
+        "Avoid organic mulch on indoor plant soil surfaces",
+        "Bottom-water plants when possible",
+        "Use yellow sticky traps near plants to monitor populations",
+        "Cover soil surface with sand or decorative stones"
+      ],
+      "remedies": [
+        "Let the top 1-2 inches of soil dry completely between waterings",
+        "Apply Bacillus thuringiensis israelensis (BTI) to soil (Mosquito Bits)",
+        "Use yellow sticky traps to capture adult gnats",
+        "Apply beneficial nematodes (Steinernema feltiae) to soil",
+        "Top-dress soil with 1/2 inch of sand to prevent egg-laying",
+        "Use hydrogen peroxide solution (1:4 with water) as a soil drench",
+        "Apply neem oil soil drench to kill larvae"
+      ]
+    },
+    {
+      "id": 10,
+      "name": "Tomato Hornworm",
+      "scientific_name": "Manduca quinquemaculata",
+      "description": "Large green caterpillars (up to 4 inches) with distinctive horn on their rear. They can rapidly defoliate tomato and related plants, consuming entire leaves overnight.",
+      "severity_level": "High",
+      "affected_plants": ["Tomatoes", "Peppers", "Eggplant", "Potatoes", "Tobacco", "Petunias"],
+      "symptoms": [
+        "Rapid defoliation — entire stems stripped of leaves",
+        "Large dark green droppings (frass) on leaves and ground",
+        "Chewed or missing fruit with large bore holes",
+        "Bare stems where leaves have been completely consumed",
+        "Large (3-4 inch) green caterpillars with white V-marks on sides",
+        "Wilting branch tips from stem damage"
+      ],
+      "precautions": [
+        "Inspect tomato plants daily during growing season",
+        "Till soil in fall and spring to destroy overwintering pupae",
+        "Encourage braconid wasps (do not disturb hornworms with white cocoons)",
+        "Use black light at night to find fluorescent hornworms",
+        "Interplant with basil and marigolds to deter moths",
+        "Rotate crops annually"
+      ],
+      "remedies": [
+        "Hand-pick hornworms and relocate or destroy them",
+        "Leave hornworms covered with white parasitic wasp cocoons (they'll die naturally)",
+        "Apply Bacillus thuringiensis (Bt) spray to foliage",
+        "Use spinosad-based insecticide for young caterpillars",
+        "Release Trichogramma wasps to parasitize eggs",
+        "Till soil after harvest to expose and kill pupae",
+        "Spray with neem oil to deter feeding"
+      ]
+    },
+    {
+      "id": 11,
+      "name": "Colorado Potato Beetle",
+      "scientific_name": "Leptinotarsa decemlineata",
+      "description": "Distinctive yellow-orange beetles with black stripes that devastate potato and nightshade family crops. Both adults and larvae feed voraciously on foliage.",
+      "severity_level": "High",
+      "affected_plants": ["Potatoes", "Tomatoes", "Eggplant", "Peppers", "Nightshade family"],
+      "symptoms": [
+        "Rapid defoliation of potato and nightshade plants",
+        "Yellow-orange beetles with 10 black stripes on wing covers",
+        "Orange-red egg masses on leaf undersides",
+        "Red-orange humpbacked larvae feeding on leaves",
+        "Skeletonized leaves and completely stripped plants",
+        "Reduced tuber/fruit yield and size"
+      ],
+      "precautions": [
+        "Practice crop rotation — move potato family at least 200 feet yearly",
+        "Use thick mulch (straw) to impede beetle emergence",
+        "Plant resistant potato varieties when available",
+        "Use floating row covers until flowering",
+        "Till soil in fall to expose overwintering adults",
+        "Interplant with tansy, catnip, or horseradish"
+      ],
+      "remedies": [
+        "Hand-pick adults, larvae, and crush egg masses",
+        "Apply Bacillus thuringiensis var. tenebrionis (Btt) for larvae",
+        "Use spinosad spray — effective against larvae and adults",
+        "Apply neem oil to repel adults and disrupt larval development",
+        "Use kaolin clay (Surround WP) as a physical barrier",
+        "Apply diatomaceous earth around plants",
+        "For severe infestations, rotate chemical classes to prevent resistance"
+      ]
+    },
+    {
+      "id": 12,
+      "name": "Flea Beetles",
+      "scientific_name": "Chrysomelidae (Alticini)",
+      "description": "Tiny, jumping beetles that chew small round holes in leaves. They are particularly damaging to seedlings and young transplants in spring.",
+      "severity_level": "Moderate",
+      "affected_plants": ["Eggplant", "Radishes", "Cabbage", "Broccoli", "Turnips", "Arugula", "Potatoes"],
+      "symptoms": [
+        "Numerous small round 'shot holes' in leaves",
+        "Leaves appearing lace-like with many tiny perforations",
+        "Wilting and death of young seedlings",
+        "Tiny, shiny black or bronze beetles that jump when disturbed",
+        "Scarred or pitted stems near soil line",
+        "Delayed plant growth and reduced vigor"
+      ],
+      "precautions": [
+        "Use floating row covers on seedlings until plants are established",
+        "Delay transplanting until plants are larger and more tolerant",
+        "Use white or reflective mulch to disorient beetles",
+        "Remove crop debris promptly after harvest",
+        "Start seedlings indoors for larger transplants",
+        "Interplant with catnip or basil as repellent companions"
+      ],
+      "remedies": [
+        "Apply diatomaceous earth to foliage (reapply after rain)",
+        "Use kaolin clay spray to create a physical barrier on leaves",
+        "Apply neem oil spray every 5-7 days",
+        "Use spinosad-based insecticide for heavy infestations",
+        "Apply pyrethrin spray for immediate knockdown",
+        "Set up yellow sticky traps near affected plants",
+        "Use beneficial nematodes to control soil-dwelling larvae"
+      ]
+    },
+    {
+      "id": 13,
+      "name": "Sawflies",
+      "scientific_name": "Symphyta (Hymenoptera)",
+      "description": "Larvae of wasp-like insects that resemble caterpillars. They feed gregariously on leaves and can rapidly defoliate roses, willows, and other plants.",
+      "severity_level": "Moderate",
+      "affected_plants": ["Roses", "Willows", "Pines", "Gooseberries", "Pears", "Cherries", "Hibiscus"],
+      "symptoms": [
+        "Leaves skeletonized or eaten from edges inward",
+        "Groups of slug-like larvae feeding together on leaves",
+        "Window-paning (larvae eat one leaf surface, leaving the other)",
+        "Rolled or curled leaves containing larvae",
+        "Rapid defoliation of affected branches",
+        "Slug-like larvae (smooth, green or brown) often with dark heads"
+      ],
+      "precautions": [
+        "Inspect plants regularly in spring and early summer",
+        "Cultivate soil around plants in fall to expose pupae",
+        "Encourage bird populations in the garden",
+        "Remove and destroy egg-laying sites on leaf edges",
+        "Maintain plant vigor through proper care",
+        "Use horticultural fleece on susceptible plants"
+      ],
+      "remedies": [
+        "Hand-pick larvae and drop in soapy water",
+        "Spray with insecticidal soap directly on larvae",
+        "Apply neem oil spray to foliage",
+        "Use pyrethrin-based spray for heavy infestations",
+        "Note: Bt (Bacillus thuringiensis) is NOT effective against sawflies",
+        "Apply spinosad spray for effective control",
+        "Cultivate soil around plants to expose and kill pupae"
+      ]
+    },
+    {
+      "id": 14,
+      "name": "Stink Bugs",
+      "scientific_name": "Pentatomidae",
+      "description": "Shield-shaped bugs that pierce plant tissue and suck out fluids. The brown marmorated stink bug is an invasive species causing increasing agricultural damage.",
+      "severity_level": "Moderate to High",
+      "affected_plants": ["Tomatoes", "Peppers", "Peaches", "Apples", "Soybeans", "Corn", "Berries"],
+      "symptoms": [
+        "Dimpled, distorted, or cat-faced fruit",
+        "Cloudy or discolored spots on tomatoes and peppers",
+        "Brown or white feeding scars on fruit surfaces",
+        "Seeds damaged inside pods (soybeans, beans)",
+        "Strong unpleasant odor when bugs are crushed",
+        "Shield-shaped brown or green bugs on plants"
+      ],
+      "precautions": [
+        "Seal cracks around home foundations to prevent indoor invasions",
+        "Remove weeds and overgrown vegetation near garden edges",
+        "Use trap crops like sunflowers or sweet corn to lure bugs away",
+        "Install row covers over susceptible crops",
+        "Eliminate overwintering sites (brush piles, leaf litter)",
+        "Monitor with pheromone traps starting in spring"
+      ],
+      "remedies": [
+        "Hand-pick bugs and drop into soapy water",
+        "Use kaolin clay spray as a deterrent on fruit crops",
+        "Apply neem oil to reduce feeding damage",
+        "Use pyrethrin spray for quick knockdown",
+        "Set up light traps (stink bugs are attracted to light at night)",
+        "Release Trissolcus japonicus parasitic wasp (where approved)",
+        "Apply bifenthrin to garden borders (perimeter treatment)"
+      ]
+    }
+  ]
+}

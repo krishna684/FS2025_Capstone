@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+
+{% block title %}Describe Symptoms - AGBOT{% endblock %}
+
+{% block content %}
+<div class="describe-page" style="max-width: 800px; margin: 0 auto; padding: 20px;">
+    <!-- Header -->
+    <div style="margin-bottom: 30px;">
+        <a href="{{ url_for('scan') }}" style="display: inline-flex; align-items: center; gap: 8px; color: var(--primary-color); text-decoration: none; margin-bottom: 15px;">
+            <i class="fas fa-arrow-left"></i> Back to Scan
+        </a>
+        <h1 style="margin: 0 0 10px 0; font-size: 28px; color: var(--text-primary);">Describe Plant Symptoms</h1>
+        <p style="color: var(--text-secondary); margin: 0;">No camera? No problem. Describe what you see and get instant AI diagnosis.</p>
+    </div>
+
+    <!-- Info Card -->
+    <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; padding: 25px; border-radius: 12px; margin-bottom: 25px; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);">
+        <h3 style="margin: 0 0 15px 0; font-size: 18px; display: flex; align-items: center; gap: 10px;">
+            <i class="fas fa-info-circle"></i> When to use this feature
+        </h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-check-circle" style="font-size: 16px;"></i>
+                <span>Poor lighting conditions</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-check-circle" style="font-size: 16px;"></i>
+                <span>No camera available</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-check-circle" style="font-size: 16px;"></i>
+                <span>Quick preliminary check</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <i class="fas fa-check-circle" style="font-size: 16px;"></i>
+                <span>Remote location</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Form -->
+    <form id="symptomForm" style="background: var(--card-bg); padding: 30px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); margin-bottom: 25px;">
+        <div style="margin-bottom: 20px;">
+            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-primary);">
+                <i class="fas fa-leaf" style="color: var(--primary-color);"></i> Plant Type (optional)
+            </label>
+            <input
+                type="text"
+                id="plantType"
+                placeholder="e.g., Tomato, Wheat, Rose..."
+                style="width: 100%; padding: 12px; border: 2px solid var(--border-color); border-radius: 8px; font-size: 15px; transition: border-color 0.3s; background: var(--bg-color); color: var(--text-primary);">
+        </div>
+
+        <div style="margin-bottom: 25px;">
+            <label style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-primary);">
+                <i class="fas fa-comment-medical" style="color: var(--primary-color);"></i> Describe the Symptoms *
+            </label>
+            <textarea
+                id="symptoms"
+                required
+                rows="5"
+                placeholder="Describe what you see: leaf colors, spots, wilting, insects, webbing, etc. Be specific about colors, sizes, and locations."
+                style="width: 100%; padding: 12px; border: 2px solid var(--border-color); border-radius: 8px; font-size: 15px; resize: vertical; transition: border-color 0.3s; font-family: inherit; background: var(--bg-color); color: var(--text-primary);"></textarea>
+            <small style="color: var(--text-secondary); font-size: 13px;">Be as detailed as possible for better accuracy</small>
+        </div>
+
+        <button
+            type="submit"
+            style="width: 100%; background: var(--primary-color); color: white; border: none; padding: 15px; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.3s; display: flex; align-items: center; justify-content: center; gap: 10px;"
+            onmouseover="this.style.background='#059669'; this.style.transform='translateY(-2px)'"
+            onmouseout="this.style.background='var(--primary-color)'; this.style.transform='translateY(0)'">
+            <i class="fas fa-brain"></i> Analyze Symptoms
+        </button>
+    </form>
+
+    <!-- Examples -->
+    <div style="background: var(--card-bg); padding: 25px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
+        <h3 style="margin: 0 0 15px 0; color: var(--text-primary); font-size: 18px;">
+            <i class="fas fa-lightbulb" style="color: #fbbf24;"></i> Example Descriptions
+        </h3>
+        <p style="color: var(--text-secondary); margin: 0 0 15px 0; font-size: 14px;">Click an example to use it:</p>
+
+        <div style="display: grid; gap: 12px;">
+            <div onclick="useExample('White powdery substance covering the upper surface of leaves. Started as small spots but spreading quickly across multiple leaves.')"
+                 style="padding: 15px; border: 2px solid var(--border-color); border-radius: 8px; cursor: pointer; transition: all 0.3s; background: var(--bg-color);"
+                 onmouseover="this.style.borderColor='var(--primary-color)'; this.style.transform='translateX(5px)'"
+                 onmouseout="this.style.borderColor='var(--border-color)'; this.style.transform='translateX(0)'">
+                <div style="font-weight: 600; color: var(--primary-color); margin-bottom: 5px;">Fungal Disease</div>
+                <div style="color: var(--text-secondary); font-size: 14px;">White powdery substance covering the upper surface of leaves...</div>
+            </div>
+
+            <div onclick="useExample('Small green insects clustered on new growth and undersides of leaves. Leaves are curling and feel sticky to touch. Also seeing ants on the plant.')"
+                 style="padding: 15px; border: 2px solid var(--border-color); border-radius: 8px; cursor: pointer; transition: all 0.3s; background: var(--bg-color);"
+                 onmouseover="this.style.borderColor='var(--primary-color)'; this.style.transform='translateX(5px)'"
+                 onmouseout="this.style.borderColor='var(--border-color)'; this.style.transform='translateX(0)'">
+                <div style="font-weight: 600; color: var(--primary-color); margin-bottom: 5px;">Insect Infestation</div>
+                <div style="color: var(--text-secondary); font-size: 14px;">Small green insects clustered on new growth...</div>
+            </div>
+
+            <div onclick="useExample('Brown circular spots with yellow halos on lower and middle leaves. Spots have a target-like appearance with concentric rings. Leaves are starting to yellow and drop.')"
+                 style="padding: 15px; border: 2px solid var(--border-color); border-radius: 8px; cursor: pointer; transition: all 0.3s; background: var(--bg-color);"
+                 onmouseover="this.style.borderColor='var(--primary-color)'; this.style.transform='translateX(5px)'"
+                 onmouseout="this.style.borderColor='var(--border-color)'; this.style.transform='translateX(0)'">
+                <div style="font-weight: 600; color: var(--primary-color); margin-bottom: 5px;">Leaf Spots</div>
+                <div style="color: var(--text-secondary); font-size: 14px;">Brown circular spots with yellow halos on lower leaves...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Loading Modal -->
+<div id="loadingModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 9999; align-items: center; justify-content: center;">
+    <div style="background: var(--card-bg); padding: 40px; border-radius: 16px; text-align: center; max-width: 400px; margin: 20px;">
+        <div style="width: 60px; height: 60px; border: 4px solid var(--border-color); border-top-color: var(--primary-color); border-radius: 50%; margin: 0 auto 20px; animation: spin 1s linear infinite;"></div>
+        <h3 style="margin: 0 0 10px 0; color: var(--text-primary);">Analyzing Symptoms...</h3>
+        <p style="color: var(--text-secondary); margin: 0;">Our AI is processing your description</p>
+    </div>
+</div>
+
+<style>
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+input:focus, textarea:focus {
+    outline: none;
+    border-color: var(--primary-color) !important;
+}
+</style>
+
+<script>
+function useExample(text) {
+    document.getElementById('symptoms').value = text;
+    document.getElementById('symptoms').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    document.getElementById('symptoms').focus();
+}
+
+document.getElementById('symptomForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const symptoms = document.getElementById('symptoms').value.trim();
+    const plantType = document.getElementById('plantType').value.trim();
+
+    if (!symptoms) {
+        alert('Please describe the symptoms');
+        return;
+    }
+
+    // Show loading
+    document.getElementById('loadingModal').style.display = 'flex';
+
+    try {
+        const response = await fetch('/analyze_symptoms', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ symptoms, plant_type: plantType })
+        });
+
+        const result = await response.json();
+
+        if (result.error) {
+            throw new Error(result.error);
+        }
+
+        // Redirect to results
+        setTimeout(() => {
+            window.location.href = result.redirect;
+        }, 1500);
+
+    } catch (error) {
+        document.getElementById('loadingModal').style.display = 'none';
+        alert('Error: ' + error.message);
+    }
+});
+</script>
+{% endblock %}

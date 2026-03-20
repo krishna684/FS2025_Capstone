@@ -1,0 +1,492 @@
+{% extends "base.html" %}
+
+{% block title %}AGBOT - Help{% endblock %}
+
+{% block content %}
+<div class="help-page">
+    <div class="page-header">
+        <h1><i class="fas fa-question-circle"></i> {{ t.help.title if t.help.title else 'Help Center' }}</h1>
+        <p class="subtitle">{{ t.help.subtitle if t.help.subtitle else 'Learn how to use AGBOT effectively' }}</p>
+    </div>
+
+    <div class="help-content">
+        <!-- Quick Start Guide -->
+        <section class="help-section">
+            <div class="section-header">
+                <i class="fas fa-rocket"></i>
+                <h2>{{ t.help.quickStart if t.help.quickStart else 'Quick Start Guide' }}</h2>
+            </div>
+            <div class="help-cards">
+                <div class="help-card">
+                    <div class="step-number">1</div>
+                    <h3>{{ t.help.step1Title if t.help.step1Title else 'Capture or Upload' }}</h3>
+                    <p>{{ t.help.step1Desc if t.help.step1Desc else 'Take a photo of your plant leaf or upload an existing image from your device.' }}</p>
+                </div>
+                <div class="help-card">
+                    <div class="step-number">2</div>
+                    <h3>{{ t.help.step2Title if t.help.step2Title else 'AI Analysis' }}</h3>
+                    <p>{{ t.help.step2Desc if t.help.step2Desc else 'Our AI analyzes the image to detect pests and diseases in seconds.' }}</p>
+                </div>
+                <div class="help-card">
+                    <div class="step-number">3</div>
+                    <h3>{{ t.help.step3Title if t.help.step3Title else 'Get Recommendations' }}</h3>
+                    <p>{{ t.help.step3Desc if t.help.step3Desc else 'Receive detailed treatment recommendations and prevention tips.' }}</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Features -->
+        <section class="help-section">
+            <div class="section-header">
+                <i class="fas fa-star"></i>
+                <h2>{{ t.help.features if t.help.features else 'Key Features' }}</h2>
+            </div>
+            <div class="features-grid">
+                <div class="feature-item">
+                    <i class="fas fa-camera"></i>
+                    <h3>{{ t.help.scanFeature if t.help.scanFeature else 'Image Scanning' }}</h3>
+                    <p>{{ t.help.scanFeatureDesc if t.help.scanFeatureDesc else 'Use your camera or upload images to scan plants for pest damage and diseases.' }}</p>
+                </div>
+                <div class="feature-item">
+                    <i class="fas fa-edit"></i>
+                    <h3>{{ t.help.describeFeature if t.help.describeFeature else 'Symptom Description' }}</h3>
+                    <p>{{ t.help.describeFeatureDesc if t.help.describeFeatureDesc else 'Describe symptoms in text to get AI-powered diagnosis without an image.' }}</p>
+                </div>
+                <div class="feature-item">
+                    <i class="fas fa-history"></i>
+                    <h3>{{ t.help.historyFeature if t.help.historyFeature else 'Scan History' }}</h3>
+                    <p>{{ t.help.historyFeatureDesc if t.help.historyFeatureDesc else 'Track all your past scans and monitor plant health over time.' }}</p>
+                </div>
+                <div class="feature-item">
+                    <i class="fas fa-file-export"></i>
+                    <h3>{{ t.help.exportFeature if t.help.exportFeature else 'Export Data' }}</h3>
+                    <p>{{ t.help.exportFeatureDesc if t.help.exportFeatureDesc else 'Export your scan history in CSV or JSON format for record keeping.' }}</p>
+                </div>
+                <div class="feature-item">
+                    <i class="fas fa-moon"></i>
+                    <h3>{{ t.help.themeFeature if t.help.themeFeature else 'Dark Mode' }}</h3>
+                    <p>{{ t.help.themeFeatureDesc if t.help.themeFeatureDesc else 'Switch between light and dark themes for comfortable viewing.' }}</p>
+                </div>
+                <div class="feature-item">
+                    <i class="fas fa-language"></i>
+                    <h3>{{ t.help.langFeature if t.help.langFeature else 'Multi-Language' }}</h3>
+                    <p>{{ t.help.langFeatureDesc if t.help.langFeatureDesc else 'Available in English, Spanish, Hindi, and Swahili.' }}</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- FAQ Section -->
+        <section class="help-section">
+            <div class="section-header">
+                <i class="fas fa-comments"></i>
+                <h2>{{ t.help.faq if t.help.faq else 'Frequently Asked Questions' }}</h2>
+            </div>
+            <div class="faq-list">
+                <div class="faq-item">
+                    <button class="faq-question" onclick="toggleFaq(this)">
+                        <span>{{ t.help.faq1Q if t.help.faq1Q else 'How accurate is the pest detection?' }}</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <p>{{ t.help.faq1A if t.help.faq1A else 'AGBOT uses advanced AI trained on thousands of images, achieving over 94% accuracy in pest identification. Results improve continuously as the model learns from user feedback.' }}</p>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <button class="faq-question" onclick="toggleFaq(this)">
+                        <span>{{ t.help.faq2Q if t.help.faq2Q else 'Can I use AGBOT offline?' }}</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <p>{{ t.help.faq2A if t.help.faq2A else 'Currently, AGBOT requires an internet connection for AI analysis. We are working on offline capabilities for future releases.' }}</p>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <button class="faq-question" onclick="toggleFaq(this)">
+                        <span>{{ t.help.faq3Q if t.help.faq3Q else 'What types of pests can AGBOT detect?' }}</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <p>{{ t.help.faq3A if t.help.faq3A else 'AGBOT can identify common agricultural pests including aphids, Japanese beetles, spider mites, cabbage worms, whiteflies, and many more. The database is continuously expanding.' }}</p>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <button class="faq-question" onclick="toggleFaq(this)">
+                        <span>{{ t.help.faq4Q if t.help.faq4Q else 'How do I get the best scan results?' }}</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <p>{{ t.help.faq4A if t.help.faq4A else 'For best results: 1) Use good lighting (natural daylight is best), 2) Focus on the damaged area of the leaf, 3) Hold the camera steady and close to the leaf, 4) Ensure the image is not blurry.' }}</p>
+                    </div>
+                </div>
+                <div class="faq-item">
+                    <button class="faq-question" onclick="toggleFaq(this)">
+                        <span>{{ t.help.faq5Q if t.help.faq5Q else 'Is my data secure?' }}</span>
+                        <i class="fas fa-chevron-down"></i>
+                    </button>
+                    <div class="faq-answer">
+                        <p>{{ t.help.faq5A if t.help.faq5A else 'Yes, your data is securely stored and never shared with third parties. You can export or delete your data at any time from the Settings page.' }}</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tips Section -->
+        <section class="help-section">
+            <div class="section-header">
+                <i class="fas fa-lightbulb"></i>
+                <h2>{{ t.help.tips if t.help.tips else 'Pro Tips' }}</h2>
+            </div>
+            <div class="tips-list">
+                <div class="tip-item">
+                    <i class="fas fa-check-circle"></i>
+                    <span>{{ t.help.tip1 if t.help.tip1 else 'Scan leaves early in the morning when pests are most visible.' }}</span>
+                </div>
+                <div class="tip-item">
+                    <i class="fas fa-check-circle"></i>
+                    <span>{{ t.help.tip2 if t.help.tip2 else 'Check both top and bottom of leaves for complete assessment.' }}</span>
+                </div>
+                <div class="tip-item">
+                    <i class="fas fa-check-circle"></i>
+                    <span>{{ t.help.tip3 if t.help.tip3 else 'Regular scanning helps catch pest problems early.' }}</span>
+                </div>
+                <div class="tip-item">
+                    <i class="fas fa-check-circle"></i>
+                    <span>{{ t.help.tip4 if t.help.tip4 else 'Use the feedback feature to help improve AI accuracy.' }}</span>
+                </div>
+                <div class="tip-item">
+                    <i class="fas fa-check-circle"></i>
+                    <span>{{ t.help.tip5 if t.help.tip5 else 'Export your scan history regularly for farm records.' }}</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Contact Support -->
+        <section class="help-section contact-support">
+            <div class="section-header">
+                <i class="fas fa-headset"></i>
+                <h2>{{ t.help.needHelp if t.help.needHelp else 'Need More Help?' }}</h2>
+            </div>
+            <p>{{ t.help.contactDesc if t.help.contactDesc else "Can't find what you're looking for? Our team is here to help." }}</p>
+            <div class="support-buttons">
+                <a href="mailto:support@agbot.com" class="btn-primary">
+                    <i class="fas fa-envelope"></i> {{ t.help.emailSupport if t.help.emailSupport else 'Email Support' }}
+                </a>
+                <a href="{{ url_for('about') }}" class="btn-secondary">
+                    <i class="fas fa-info-circle"></i> {{ t.help.aboutUs if t.help.aboutUs else 'About Us' }}
+                </a>
+            </div>
+        </section>
+    </div>
+</div>
+
+<style>
+.help-page {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.page-header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.page-header h1 {
+    font-size: 2rem;
+    color: var(--primary-color);
+    margin-bottom: 10px;
+}
+
+.page-header h1 i {
+    margin-right: 10px;
+}
+
+.page-header .subtitle {
+    color: var(--text-secondary);
+    font-size: 1.1rem;
+}
+
+.help-section {
+    background: var(--card-bg);
+    border-radius: 12px;
+    padding: 25px;
+    margin-bottom: 25px;
+    box-shadow: var(--shadow);
+}
+
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+}
+
+.section-header i {
+    font-size: 1.5rem;
+    color: var(--primary-color);
+}
+
+.section-header h2 {
+    font-size: 1.4rem;
+    margin: 0;
+}
+
+/* Quick Start Cards */
+.help-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.help-card {
+    background: var(--bg-secondary);
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+    position: relative;
+}
+
+.step-number {
+    width: 40px;
+    height: 40px;
+    background: var(--primary-color);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin: 0 auto 15px;
+}
+
+.help-card h3 {
+    margin-bottom: 10px;
+    color: var(--text-primary);
+}
+
+.help-card p {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    line-height: 1.5;
+}
+
+/* Features Grid */
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 20px;
+}
+
+.feature-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 20px;
+    background: var(--bg-secondary);
+    border-radius: 10px;
+}
+
+.feature-item i {
+    font-size: 2rem;
+    color: var(--primary-color);
+    margin-bottom: 15px;
+}
+
+.feature-item h3 {
+    margin-bottom: 8px;
+    font-size: 1.1rem;
+}
+
+.feature-item p {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+/* FAQ */
+.faq-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.faq-item {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.faq-question {
+    width: 100%;
+    padding: 15px 20px;
+    background: var(--bg-secondary);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 1rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    text-align: left;
+}
+
+.faq-question:hover {
+    background: var(--bg-tertiary, var(--bg-secondary));
+}
+
+.faq-question i {
+    transition: transform 0.3s;
+    color: var(--primary-color);
+}
+
+.faq-question.active i {
+    transform: rotate(180deg);
+}
+
+.faq-answer {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease-out;
+    background: var(--card-bg);
+}
+
+.faq-answer p {
+    padding: 15px 20px;
+    color: var(--text-secondary);
+    line-height: 1.6;
+    margin: 0;
+}
+
+.faq-item.active .faq-answer {
+    max-height: 200px;
+}
+
+/* Tips */
+.tips-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.tip-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 15px;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+}
+
+.tip-item i {
+    color: var(--success);
+    font-size: 1.1rem;
+}
+
+.tip-item span {
+    color: var(--text-primary);
+}
+
+/* Contact Support */
+.contact-support {
+    text-align: center;
+}
+
+.contact-support p {
+    color: var(--text-secondary);
+    margin-bottom: 20px;
+}
+
+.support-buttons {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.support-buttons a {
+    padding: 12px 24px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s;
+}
+
+.support-buttons .btn-primary {
+    background: var(--primary-color);
+    color: white;
+}
+
+.support-buttons .btn-primary:hover {
+    background: var(--primary-dark, #138a3a);
+}
+
+.support-buttons .btn-secondary {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border-color);
+}
+
+.support-buttons .btn-secondary:hover {
+    background: var(--bg-tertiary, var(--border-color));
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .help-page {
+        padding: 15px;
+    }
+
+    .page-header h1 {
+        font-size: 1.6rem;
+    }
+
+    .help-section {
+        padding: 20px 15px;
+    }
+
+    .help-cards {
+        grid-template-columns: 1fr;
+    }
+
+    .features-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .support-buttons {
+        flex-direction: column;
+    }
+
+    .support-buttons a {
+        width: 100%;
+        justify-content: center;
+    }
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleFaq(button) {
+    const faqItem = button.parentElement;
+    const wasActive = faqItem.classList.contains('active');
+
+    // Close all FAQ items
+    document.querySelectorAll('.faq-item').forEach(item => {
+        item.classList.remove('active');
+        item.querySelector('.faq-question').classList.remove('active');
+    });
+
+    // Open clicked item if it wasn't already open
+    if (!wasActive) {
+        faqItem.classList.add('active');
+        button.classList.add('active');
+    }
+}
+</script>
+{% endblock %}

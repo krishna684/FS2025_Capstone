@@ -7,9 +7,15 @@ import io
 from PIL import Image
 import json
 import os
+import sys
 from werkzeug.utils import secure_filename
 from models import db, User, Scan, Feedback, PestDatabase
 from sqlalchemy.exc import IntegrityError
+
+# Add ml_model to path for imports
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'ml_model'))
+from model import get_model
+from knowledge_base import get_pest_info_by_name, get_all_pest_names
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-here'  # Change this in production
@@ -406,6 +412,131 @@ def index():
 def scan():
     return render_template('scan.html')
 
+@app.route('/describe')
+@login_required
+def describe():
+    return render_template('describe.html')
+
+@app.route('/analyze_symptoms', methods=['POST'])
+@login_required
+def analyze_symptoms():
+    """Analyze plant symptoms from text description"""
+    try:
+        data = request.get_json()
+        symptoms = data.get('symptoms', '').strip()
+        plant_type = data.get('plant_type', '').strip()
+
+        if not symptoms:
+            return jsonify({'error': 'Please describe the symptoms'}), 400
+
+        # AI analysis
+        analysis_result = analyze_text_symptoms(symptoms, plant_type)
+
+        # Store in database
+        scan = Scan(
+            user_id=current_user.id,
+            pest_name=analysis_result['disease_name'],
+            confidence=analysis_result['confidence'],
+            severity=analysis_result.get('severity', 'Unknown'),
+            scan_type='text_description'
+        )
+        db.session.add(scan)
+        db.session.commit()
+
+        # Store for results page
+        session['last_analysis'] = analysis_result
+
+        return jsonify({'success': True, 'redirect': url_for('results')})
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+def analyze_text_symptoms(symptoms, plant_type=''):
+    """AI-powered symptom analysis using real pest knowledge base."""
+    symptoms_lower = symptoms.lower()
+
+    # Match against the real pest knowledge base (15 species)
+    all_pest_names = get_all_pest_names()
+    kb_matches = []
+
+    for pest_name in all_pest_names:
+        pest_info = get_pest_info_by_name(pest_name)
+        if not pest_info:
+            continue
+        score = 0
+        for symptom in pest_info.get('symptoms', []):
+            for word in symptom.lower().split():
+                if len(word) > 3 and word in symptoms_lower:
+                    score += 1
+        if pest_name.lower() in symptoms_lower:
+            score += 5
+        if plant_type:
+            for plant in pest_info.get('affected_plants', []):
+                if plant_type.lower() in plant.lower() or plant.lower() in plant_type.lower():
+                    score += 2
+        if score > 0:
+            kb_matches.append((score, pest_info))
+
+    # Also check disease-specific keywords
+    diseases = [
+        {'name': 'Powdery Mildew', 'scientific': 'Erysiphales', 'keywords': ['white', 'powder', 'dusty', 'coating', 'mildew'], 'description': 'White powdery coating on leaves and stems', 'causes': ['High humidity', 'Poor air circulation', 'Overhead watering'], 'severity': 'Moderate', 'chemical': ['Sulfur-based fungicide', 'Potassium bicarbonate spray'], 'organic': ['Baking soda solution (1 tbsp per gallon water)', 'Milk spray (1:10 ratio)', 'Neem oil'], 'prevention': ['Improve air circulation', 'Water at base only', 'Remove infected leaves']},
+        {'name': 'Leaf Blight', 'scientific': 'Alternaria spp.', 'keywords': ['brown', 'spots', 'yellow', 'halo', 'target', 'ring'], 'description': 'Brown spots with yellow halos on leaves', 'causes': ['Fungal infection', 'Water splash', 'High humidity'], 'severity': 'High', 'chemical': ['Copper fungicide', 'Chlorothalonil'], 'organic': ['Remove infected leaves', 'Compost tea spray', 'Improve drainage'], 'prevention': ['Crop rotation', 'Drip irrigation', 'Remove debris']},
+        {'name': 'Early Blight', 'scientific': 'Alternaria solani', 'keywords': ['dark', 'concentric', 'circles', 'lower leaves', 'bulls'], 'description': 'Dark spots with concentric rings, typically on lower leaves', 'causes': ['Soil-borne fungus', 'Warm humid weather', 'Water splash'], 'severity': 'High', 'chemical': ['Copper fungicide', 'Mancozeb'], 'organic': ['Remove affected leaves', 'Mulch heavily', 'Baking soda spray'], 'prevention': ['3-year crop rotation', 'Stake plants', 'Water at soil level']},
+        {'name': 'Nutrient Deficiency', 'scientific': 'N/A', 'keywords': ['yellow', 'pale', 'chlorosis', 'stunted', 'discolor'], 'description': 'Yellowing or pale leaves, stunted growth', 'causes': ['Poor soil nutrition', 'pH imbalance', 'Nutrient lockout'], 'severity': 'Mild', 'chemical': ['NPK fertilizer', 'Chelated iron'], 'organic': ['Compost', 'Fish emulsion', 'Seaweed extract', 'pH adjustment'], 'prevention': ['Regular soil testing', 'Balanced fertilization', 'Proper pH maintenance']},
+    ]
+
+    disease_scores = []
+    for disease in diseases:
+        matches = sum(1 for kw in disease['keywords'] if kw in symptoms_lower)
+        if matches > 0:
+            disease_scores.append((matches, disease))
+
+    # Use KB match if stronger
+    if kb_matches:
+        kb_matches.sort(reverse=True, key=lambda x: x[0])
+        best_kb = kb_matches[0]
+        best_disease_score = disease_scores[0][0] if disease_scores else 0
+        if best_kb[0] >= best_disease_score:
+            pest = best_kb[1]
+            confidence = min(60 + (best_kb[0] * 5), 95)
+            remedies = pest.get('remedies', [])
+            return {
+                'disease_name': pest['name'],
+                'scientific_name': pest.get('scientific_name', ''),
+                'confidence': confidence,
+                'description': pest.get('description', ''),
+                'causes': pest.get('symptoms', [])[:3],
+                'severity': pest.get('severity_level', 'Unknown'),
+                'chemical_treatments': [r for r in remedies if any(w in r.lower() for w in ['insecticide', 'miticide', 'fungicide', 'carbaryl', 'pyrethrin', 'systemic'])],
+                'organic_treatments': [r for r in remedies if any(w in r.lower() for w in ['neem', 'soap', 'water', 'hand-pick', 'ladybug', 'diatomaceous', 'predatory'])],
+                'prevention': pest.get('precautions', [])[:4],
+                'user_symptoms': symptoms,
+                'plant_type': plant_type
+            }
+
+    # Fallback to disease keyword matching
+    if disease_scores:
+        disease_scores.sort(reverse=True, key=lambda x: x[0])
+        match = disease_scores[0][1]
+        confidence = min(65 + (disease_scores[0][0] * 7), 94)
+    else:
+        match = {'name': 'General Plant Stress', 'scientific': 'Unknown', 'description': 'Unable to identify specific disease from description', 'causes': ['Environmental stress', 'Cultural issues', 'Multiple factors'], 'severity': 'Unknown', 'chemical': ['Consult agricultural extension office'], 'organic': ['Improve general care', 'Check watering', 'Inspect closely'], 'prevention': ['Regular monitoring', 'Good cultural practices']}
+        confidence = 45
+
+    return {
+        'disease_name': match['name'],
+        'scientific_name': match.get('scientific', ''),
+        'confidence': confidence,
+        'description': match['description'],
+        'causes': match.get('causes', []),
+        'severity': match.get('severity', 'Unknown'),
+        'chemical_treatments': match.get('chemical', []),
+        'organic_treatments': match.get('organic', []),
+        'prevention': match.get('prevention', []),
+        'user_symptoms': symptoms,
+        'plant_type': plant_type
+    }
+
 @app.route('/history')
 def history():
     # Get scan history with sample data
@@ -455,6 +586,11 @@ def history():
     
     return render_template('history.html', history=history_data, stats=stats)
 
+@app.route('/help')
+@login_required
+def help_page():
+    return render_template('help.html')
+
 @app.route('/about')
 def about():
     team = [
@@ -468,15 +604,16 @@ def about():
 
 @app.route('/analyze', methods=['POST'])
 def analyze():
-    """Handle image upload and analysis"""
+    """Handle image upload and real AI analysis"""
     try:
+        image_bytes = None
+
         # Check if file was uploaded
         if 'image' not in request.files:
             # Check if base64 image was sent
             json_data = request.get_json(silent=True)
             if json_data and 'image_data' in json_data:
                 image_data = json_data['image_data']
-                # Process base64 image
                 image_str = image_data.split(',')[1] if ',' in image_data else image_data
                 image_bytes = base64.b64decode(image_str)
             else:
@@ -484,17 +621,24 @@ def analyze():
         else:
             file = request.files['image']
             if file and allowed_file(file.filename):
-                # Save uploaded file
                 filename = secure_filename(file.filename)
                 timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
                 filename = f"{timestamp}_{filename}"
                 filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
                 file.save(filepath)
+                with open(filepath, 'rb') as f:
+                    image_bytes = f.read()
             else:
                 return jsonify({'error': 'Invalid file format'}), 400
 
-        # Simulate AI analysis (in production, call your ML model here)
-        analysis_result = simulate_pest_detection()
+        # Run real AI model inference
+        analysis_result = run_pest_detection(image_bytes)
+
+        # Save a copy as latest_scan.jpg for the results page
+        from PIL import Image as PILImage
+        img = PILImage.open(io.BytesIO(image_bytes)).convert('RGB')
+        latest_path = os.path.join(app.config['UPLOAD_FOLDER'], 'latest_scan.jpg')
+        img.save(latest_path, 'JPEG', quality=85)
 
         # Store in history
         scan_history.append({
@@ -502,113 +646,112 @@ def analyze():
             'result': analysis_result
         })
 
+        # Store result in session for the results page
+        session['last_scan_result'] = analysis_result
+
         return jsonify(analysis_result)
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
 @app.route('/results')
 def results():
     """Display analysis results"""
-    # Get the latest scan result or use sample data
-    if scan_history:
+    # Check for text-based analysis first
+    if 'last_analysis' in session:
+        analysis = session.get('last_analysis')
+        latest_result = {
+            'type': 'text',
+            'status': 'Analyzed',
+            'pest_identified': analysis['disease_name'],
+            'pest_scientific': analysis.get('scientific_name', ''),
+            'confidence': analysis['confidence'],
+            'damage_pattern': analysis.get('description', ''),
+            'severity': analysis.get('severity', 'Unknown'),
+            'causes': analysis.get('causes', []),
+            'chemical_treatments': analysis.get('chemical_treatments', []),
+            'organic_treatments': analysis.get('organic_treatments', []),
+            'prevention': analysis.get('prevention', []),
+            'user_symptoms': analysis.get('user_symptoms', ''),
+            'plant_type': analysis.get('plant_type', '')
+        }
+        session.pop('last_analysis', None)
+    # Check for image scan result
+    elif 'last_scan_result' in session:
+        latest_result = session.get('last_scan_result')
+        latest_result['type'] = 'image'
+        session.pop('last_scan_result', None)
+    elif scan_history:
         latest_result = scan_history[-1]['result']
+        latest_result['type'] = 'image'
     else:
         latest_result = {
-            'status': 'Pest Damaged',
-            'pest_identified': 'Japanese Beetle',
-            'pest_scientific': 'Popillia japonica',
-            'confidence': 94,
-            'damage_pattern': 'Skeletonized leaves with lace-like appearance',
-            'immediate_action': True,
-            'treatments': {
-                'immediate': [
-                    'Hand-pick beetles in early morning when they are less active',
-                    'Shake beetles into soapy water for disposal',
-                    'Remove heavily damaged leaves to prevent further stress'
-                ],
-                'ipm': [
-                    'Apply neem oil spray (follow label instructions)',
-                    'Use row covers to protect vulnerable plants',
-                    'Consider beneficial nematodes for soil treatment'
-                ],
-                'prevention': [
-                    'Monitor plants daily during peak season (June-August)',
-                    'Avoid planting highly susceptible plants near each other',
-                    'Maintain healthy soil to improve plant resilience'
-                ]
-            }
+            'type': 'image',
+            'status': 'Healthy',
+            'pest_identified': 'None',
+            'confidence': 0,
+            'message': 'No scan performed yet. Go to Scan to analyze a plant.'
         }
-    
-    return render_template('results.html', result=latest_result, 
+
+    # Add cache-busting timestamp for image
+    import time
+    image_timestamp = int(time.time())
+
+    return render_template('results.html', result=latest_result,
+                         image_timestamp=image_timestamp,
                          timestamp=datetime.now().strftime('%m/%d/%Y, %I:%M:%S %p'))
 
-def simulate_pest_detection():
-    """Simulate pest detection (replace with actual ML model)"""
-    pests = [
-        {
-            'name': 'Japanese Beetle',
-            'scientific': 'Popillia japonica',
-            'damage': 'Skeletonized leaves with lace-like appearance',
-            'severity': 'Moderate'
-        },
-        {
-            'name': 'Aphids',
-            'scientific': 'Aphidoidea',
-            'damage': 'Curled leaves, sticky honeydew on plant surface',
-            'severity': 'Mild'
-        },
-        {
-            'name': 'Spider Mites',
-            'scientific': 'Tetranychidae',
-            'damage': 'Fine webbing and yellow stippling on leaves',
-            'severity': 'Severe'
-        },
-        {
-            'name': 'No Pest Detected',
-            'scientific': 'N/A',
-            'damage': 'Plant appears healthy',
-            'severity': 'Healthy'
-        }
-    ]
-    
-    # Randomly select a pest (weighted towards pest detection for demo)
-    weights = [0.3, 0.25, 0.2, 0.25]  # Weights for each pest
-    selected = random.choices(pests, weights=weights)[0]
-    
-    if selected['name'] == 'No Pest Detected':
+def run_pest_detection(image_bytes):
+    """Run real EfficientNetB0 AI model inference on image bytes."""
+    model = get_model()
+    predictions = model.predict(image_bytes, top_k=3)
+
+    top = predictions[0]
+
+    # No pest detected
+    if top['class_name'] in ('Unrecognized Insect/Leaf', 'Unclear Image / No Pest Found'):
         return {
             'status': 'Healthy',
             'pest_identified': 'None',
-            'confidence': random.randint(92, 99),
-            'message': 'Your plant appears to be healthy!'
+            'confidence': round(top.get('confidence', 0), 1),
+            'message': 'Your plant appears to be healthy! No pests detected.',
+            'severity': 'Healthy'
         }
-    
+
+    # Pest detected — get full info from knowledge base
+    pest_info = get_pest_info_by_name(top['class_name'])
+
+    severity = pest_info.get('severity_level', 'Unknown')
+    severity_map = {'Low': 'Mild', 'Moderate': 'Moderate', 'High': 'High',
+                    'Moderate to High': 'High', 'Low to Moderate': 'Moderate'}
+    app_severity = severity_map.get(severity, severity)
+
+    remedies = pest_info.get('remedies', []) or []
+    precautions = pest_info.get('precautions', []) or []
+
     return {
-        'status': 'Pest Damaged',
-        'pest_identified': selected['name'],
-        'pest_scientific': selected['scientific'],
-        'confidence': random.randint(85, 98),
-        'damage_pattern': selected['damage'],
-        'severity': selected['severity'],
-        'immediate_action': selected['severity'] in ['Moderate', 'Severe'],
+        'status': 'Pest Detected',
+        'pest_identified': top['class_name'],
+        'pest_scientific': pest_info.get('scientific_name', ''),
+        'confidence': round(top['confidence'], 1),
+        'damage_pattern': pest_info.get('description', ''),
+        'severity': app_severity,
+        'immediate_action': app_severity in ('Moderate', 'High', 'Severe'),
+        'symptoms': pest_info.get('symptoms', []),
+        'affected_plants': pest_info.get('affected_plants', []),
         'treatments': {
-            'immediate': [
-                'Hand-pick pests if visible',
-                'Isolate affected plants',
-                'Remove damaged leaves'
-            ],
-            'ipm': [
-                'Apply appropriate organic pesticide',
-                'Introduce beneficial insects',
-                'Use physical barriers'
-            ],
-            'prevention': [
-                'Regular monitoring',
-                'Maintain plant health',
-                'Crop rotation'
-            ]
-        }
+            'immediate': remedies[:3],
+            'ipm': precautions[:3],
+            'prevention': precautions[3:6]
+        },
+        'chemical_treatments': [r for r in remedies if any(w in r.lower() for w in ['insecticide', 'miticide', 'fungicide', 'carbaryl', 'pyrethrin', 'permethrin', 'systemic', 'sulfur'])],
+        'organic_treatments': [r for r in remedies if any(w in r.lower() for w in ['neem', 'soap', 'water', 'hand-pick', 'ladybug', 'diatomaceous', 'bt ', 'bacillus', 'predatory', 'companion'])],
+        'all_predictions': [
+            {'pest': p['class_name'], 'confidence': round(p['confidence'], 1)}
+            for p in predictions if p.get('confidence', 0) > 0.1
+        ]
     }
 
 @app.route('/api/stats')
@@ -676,4 +819,13 @@ if __name__ == '__main__':
             db.session.commit()
             print("Database initialized with sample pests")
 
+    # Pre-load the AI model at startup
+    print("\n  Loading AI Model...")
+    get_model()
+
+    print("\n  AGBOT Web Server (AI-Powered)")
+    print("  ─────────────────────────────")
+    print("  Running on http://0.0.0.0:5001")
+    print("  AI Model: EfficientNetB0 (PyTorch)")
+    print("  Pest Database: 15 species\n")
     app.run(debug=True, host='0.0.0.0', port=5001)

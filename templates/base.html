@@ -43,6 +43,9 @@
                 <a href="{{ url_for('about') }}" class="nav-item {% if request.endpoint == 'about' %}active{% endif %}">
                     <i class="fas fa-info-circle"></i> {{ t.nav.about }}
                 </a>
+                <a href="{{ url_for('help_page') }}" class="nav-item {% if request.endpoint == 'help_page' %}active{% endif %}">
+                    <i class="fas fa-question-circle"></i> {{ t.nav.help if t.nav.help else 'Help' }}
+                </a>
             </div>
             {% endif %}
             <div class="nav-user">
@@ -102,6 +105,10 @@
             <a href="{{ url_for('about') }}" class="fab-menu-item {% if request.endpoint == 'about' %}active{% endif %}">
                 <i class="fas fa-info-circle"></i>
                 <span>{{ t.nav.about }}</span>
+            </a>
+            <a href="{{ url_for('help_page') }}" class="fab-menu-item {% if request.endpoint == 'help_page' %}active{% endif %}">
+                <i class="fas fa-question-circle"></i>
+                <span>{{ t.nav.help if t.nav.help else 'Help' }}</span>
             </a>
             <div class="fab-menu-divider"></div>
             <button class="fab-menu-item fab-theme-toggle" id="fabThemeToggle">

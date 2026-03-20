@@ -30,5 +30,28 @@ Thumbs.db
 static/uploads/*
 !static/uploads/.gitkeep
 
+# Node / React Native
+node_modules/
+mobile/.expo/
+mobile/dist/
+*.tsbuildinfo
+
+# iOS / Xcode
+ios/AGBOT/build/
+*.xcworkspace
+*.xcuserdata
+DerivedData/
+
+# PyTorch model cache
+*.pth
+ml_model/__pycache__/
+
+# Large files
+LLM TEST.zip
+LLM TEST/
+
+# SQLite DB (each developer creates their own)
+instance/agbot.db
+
 # Application specific
 application_v2.html

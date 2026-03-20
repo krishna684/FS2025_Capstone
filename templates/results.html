@@ -14,8 +14,9 @@
     <div class="results-container">
         <!-- Image and Status -->
         <div class="result-image-section">
-            <img src="{{ url_for('static', filename='uploads/latest_scan.jpg') }}" alt="Analyzed plant" 
-                 onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 400 300%22%3E%3Crect fill=%22%23f0f0f0%22 width=%22400%22 height=%22300%22/%3E%3Ctext x=%22200%22 y=%22150%22 text-anchor=%22middle%22 font-family=%22Arial%22 font-size=%2224%22 fill=%22%23999%22%3EPlant Image%3C/text%3E%3C/svg%3E'">
+            <img src="{{ url_for('static', filename='uploads/latest_scan.jpg') }}?t={{ image_timestamp }}" alt="Analyzed plant"
+                 onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 400 300%22%3E%3Crect fill=%22%23f0f0f0%22 width=%22400%22 height=%22300%22/%3E%3Ctext x=%22200%22 y=%22150%22 text-anchor=%22middle%22 font-family=%22Arial%22 font-size=%2224%22 fill=%22%23999%22%3EPlant Image%3C/text%3E%3C/svg%3E'"
+                 style="border-radius: 12px; max-height: 300px; object-fit: cover; width: 100%;">
             
             <div class="scan-timestamp">
                 <i class="far fa-clock"></i> Plant Health Status
@@ -54,11 +55,77 @@
 
         <!-- Damage Pattern -->
         <div class="damage-section">
-            <h3>Damage Pattern</h3>
+            <h3>{{ 'Symptoms' if result.type == 'text' else 'Damage Pattern' }}</h3>
             <p>{{ result.damage_pattern }}</p>
         </div>
 
-        <!-- Treatment Recommendations -->
+        {% if result.type == 'text' %}
+        <!-- User Description -->
+        {% if result.user_symptoms %}
+        <div class="user-description-section">
+            <h3><i class="fas fa-comment-dots"></i> Your Description</h3>
+            <p style="font-style: italic; color: var(--text-secondary); background: var(--bg-color); padding: 15px; border-left: 4px solid var(--primary-color); border-radius: 4px;">"{{ result.user_symptoms }}"</p>
+        </div>
+        {% endif %}
+
+        <!-- Causes -->
+        {% if result.causes %}
+        <div class="causes-section">
+            <h3><i class="fas fa-microscope"></i> Possible Causes</h3>
+            <ul>
+                {% for cause in result.causes %}
+                <li>{{ cause }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <!-- Treatment Tabs for Text Analysis -->
+        <div class="treatment-section">
+            <div class="treatment-tabs">
+                <button class="tab-button active" data-tab="chemical">
+                    <i class="fas fa-flask"></i> Chemical Treatments
+                </button>
+                <button class="tab-button" data-tab="organic">
+                    <i class="fas fa-leaf"></i> Organic Solutions
+                </button>
+                <button class="tab-button" data-tab="prevention">
+                    <i class="fas fa-shield-alt"></i> Prevention
+                </button>
+            </div>
+
+            <div class="treatment-content">
+                <div class="tab-content active" id="chemical">
+                    <h3>Chemical Treatment Options</h3>
+                    <ul>
+                        {% for treatment in result.chemical_treatments %}
+                        <li>{{ treatment }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+
+                <div class="tab-content" id="organic">
+                    <h3>Organic Treatment Options</h3>
+                    <ul>
+                        {% for treatment in result.organic_treatments %}
+                        <li>{{ treatment }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+
+                <div class="tab-content" id="prevention">
+                    <h3>Prevention Tips</h3>
+                    <ul>
+                        {% for tip in result.prevention %}
+                        <li>{{ tip }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        {% else %}
+        <!-- Treatment Tabs for Image Analysis -->
         <div class="treatment-section">
             <div class="treatment-tabs">
                 <button class="tab-button active" data-tab="immediate">
@@ -101,6 +168,7 @@
                 </div>
             </div>
         </div>
+        {% endif %}
 
         <!-- Feedback Section -->
         {% if result.confidence < 75 %}

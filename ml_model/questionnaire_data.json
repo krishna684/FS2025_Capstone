@@ -1,0 +1,74 @@
+{
+    "questions": [
+        {
+            "id": "location",
+            "text": "Where is the damage most visible?",
+            "options": [
+                {"text": "On the leaves", "value": "leaves"},
+                {"text": "On the stems or branches", "value": "stems"},
+                {"text": "On the fruit or flower buds", "value": "fruit"},
+                {"text": "Near the soil or roots", "value": "soil"}
+            ]
+        },
+        {
+            "id": "appearance",
+            "text": "What does the damage look like?",
+            "options": [
+                {"text": "Small holes or 'shotholes'", "value": "small_holes"},
+                {"text": "Large chunks or entire leaves missing", "value": "large_holes"},
+                {"text": "Yellowing, curling, or wilting leaves", "value": "yellowing"},
+                {"text": "Sticky residue or black mold", "value": "sticky"},
+                {"text": "White cottony or waxy clumps", "value": "cottony"},
+                {"text": "Sinuous or winding trails inside the leaf", "value": "trails"}
+            ]
+        },
+        {
+            "id": "insects_visible",
+            "text": "Are there any visible insects?",
+            "options": [
+                {"text": "Yes, I can see them", "value": "yes"},
+                {"text": "No, just the damage", "value": "no"}
+            ]
+        },
+        {
+            "id": "insect_color",
+            "text": "What color are the insects?",
+            "condition": {"insects_visible": "yes"},
+            "options": [
+                {"text": "Green or translucent", "value": "green"},
+                {"text": "White or powdery", "value": "white"},
+                {"text": "Black or dark brown", "value": "black"},
+                {"text": "Bright red or orange", "value": "red"},
+                {"text": "Shiny or metallic-looking", "value": "metallic"}
+            ]
+        },
+        {
+            "id": "insect_shape",
+            "text": "What is the general shape of the insects?",
+            "condition": {"insects_visible": "yes"},
+            "options": [
+                {"text": "Tiny dots or pear-shaped", "value": "tiny"},
+                {"text": "Long and worm-like", "value": "long"},
+                {"text": "Oval with a hard shell", "value": "oval"},
+                {"text": "Flat and scale-like", "value": "flat"}
+            ]
+        }
+    ],
+    "mappings": [
+        {"pest": "Aphids", "criteria": {"location": "leaves", "appearance": "sticky", "insect_color": "green"}},
+        {"pest": "Whiteflies", "criteria": {"location": "leaves", "appearance": "yellowing", "insect_color": "white"}},
+        {"pest": "Spider Mites", "criteria": {"location": "leaves", "appearance": "yellowing", "insect_shape": "tiny"}},
+        {"pest": "Caterpillars", "criteria": {"location": "leaves", "appearance": "large_holes", "insect_shape": "long"}},
+        {"pest": "Mealybugs", "criteria": {"location": "stems", "appearance": "cottony", "insect_color": "white"}},
+        {"pest": "Thrips", "criteria": {"location": "leaves", "appearance": "yellowing", "insect_shape": "tiny"}},
+        {"pest": "Scale Insects", "criteria": {"location": "stems", "appearance": "sticky", "insect_shape": "flat"}},
+        {"pest": "Leaf Miners", "criteria": {"location": "leaves", "appearance": "trails"}},
+        {"pest": "Japanese Beetles", "criteria": {"location": "leaves", "appearance": "small_holes", "insect_color": "metallic"}},
+        {"pest": "Fungus Gnats", "criteria": {"location": "soil", "insect_color": "black"}},
+        {"pest": "Tomato Hornworm", "criteria": {"location": "fruit", "insect_shape": "long"}},
+        {"pest": "Colorado Potato Beetle", "criteria": {"location": "leaves", "appearance": "large_holes", "insect_color": "red"}},
+        {"pest": "Flea Beetles", "criteria": {"location": "leaves", "appearance": "small_holes", "insect_color": "black"}},
+        {"pest": "Sawflies", "criteria": {"location": "leaves", "insect_shape": "long"}},
+        {"pest": "Stink Bugs", "criteria": {"location": "fruit", "appearance": "yellowing", "insect_shape": "oval"}}
+    ]
+}

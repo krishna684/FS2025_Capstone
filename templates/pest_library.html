@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+
+{% block title %}AGBOT - Pest Library{% endblock %}
+
+{% block content %}
+<div class="pest-library" style="max-width:900px; margin:0 auto; padding:20px;">
+    <div style="margin-bottom:24px;">
+        <h1 style="font-size:24px; font-weight:700; color:var(--text-primary);"><i class="fas fa-book" style="color:var(--primary-color);"></i> Pest & Disease Library</h1>
+        <p style="color:var(--text-secondary); font-size:14px; margin-top:4px;">Browse all pests and diseases our AI can detect</p>
+    </div>
+
+    <!-- Stats -->
+    <div style="display:flex; gap:12px; margin-bottom:20px;">
+        <div style="flex:1; padding:16px; background:var(--card-bg); border:1px solid var(--border-color); border-radius:14px; text-align:center;">
+            <i class="fas fa-bug" style="font-size:20px; color:#ef4444;"></i>
+            <div style="font-size:24px; font-weight:800; color:#ef4444; margin-top:4px;">{{ pests|selectattr('id', 'lt', 100)|list|length }}</div>
+            <div style="font-size:12px; color:var(--text-secondary);">Pests</div>
+        </div>
+        <div style="flex:1; padding:16px; background:var(--card-bg); border:1px solid var(--border-color); border-radius:14px; text-align:center;">
+            <i class="fas fa-flask" style="font-size:20px; color:#f59e0b;"></i>
+            <div style="font-size:24px; font-weight:800; color:#f59e0b; margin-top:4px;">{{ pests|selectattr('id', 'ge', 100)|list|length }}</div>
+            <div style="font-size:12px; color:var(--text-secondary);">Diseases</div>
+        </div>
+    </div>
+
+    <!-- Search -->
+    <div style="display:flex; align-items:center; padding:12px 16px; background:var(--card-bg); border:1px solid var(--border-color); border-radius:14px; margin-bottom:20px;">
+        <i class="fas fa-search" style="color:var(--text-secondary);"></i>
+        <input type="text" id="pestSearch" placeholder="Search pests, diseases, or plants..." oninput="filterPests()" style="flex:1; margin-left:10px; border:none; background:transparent; color:var(--text-primary); font-size:14px; outline:none;">
+    </div>
+
+    <!-- Pest cards -->
+    <div id="pestList">
+    {% for pest in pests %}
+    <div class="pest-card" data-name="{{ pest.name|lower }}" data-scientific="{{ pest.scientific_name|lower if pest.scientific_name else '' }}" data-plants="{{ pest.affected_plants|join(',')|lower if pest.affected_plants else '' }}">
+        <div class="pest-card-header" onclick="togglePest(this)">
+            <div style="display:flex; align-items:center; flex:1;">
+                <div style="width:42px; height:42px; border-radius:12px; display:flex; align-items:center; justify-content:center; margin-right:12px;
+                    background:{% if pest.severity_level == 'High' or pest.severity_level == 'Moderate to High' %}#ef444418{% elif pest.severity_level == 'Moderate' %}#f59e0b18{% else %}#3b82f618{% endif %};">
+                    <i class="fas fa-bug" style="font-size:18px; color:{% if pest.severity_level == 'High' or pest.severity_level == 'Moderate to High' %}#ef4444{% elif pest.severity_level == 'Moderate' %}#f59e0b{% else %}#3b82f6{% endif %};"></i>
+                </div>
+                <div>
+                    <div style="font-size:16px; font-weight:700; color:var(--text-primary);">{{ pest.name }}</div>
+                    <div style="font-size:12px; color:var(--text-secondary); font-style:italic;">{{ pest.scientific_name }}</div>
+                </div>
+            </div>
+            <span class="sev-badge" style="background:{% if pest.severity_level == 'High' or pest.severity_level == 'Moderate to High' %}#ef444420; color:#ef4444{% elif pest.severity_level == 'Moderate' %}#f59e0b20; color:#f59e0b{% else %}#3b82f620; color:#3b82f6{% endif %};">{{ pest.severity_level }}</span>
+            <i class="fas fa-chevron-down" style="margin-left:12px; color:var(--text-secondary); transition:transform 0.3s;"></i>
+        </div>
+
+        <div class="pest-card-body" style="display:none;">
+            <p style="color:var(--text-secondary); font-size:14px; line-height:1.6; margin-bottom:16px;">{{ pest.description }}</p>
+
+            {% if pest.affected_plants %}
+            <div style="margin-bottom:16px;">
+                <div style="font-size:13px; font-weight:700; color:var(--text-primary); margin-bottom:8px;"><i class="fas fa-leaf" style="color:var(--primary-color); margin-right:6px;"></i>Affected Plants</div>
+                <div style="display:flex; flex-wrap:wrap; gap:6px;">
+                {% for plant in pest.affected_plants %}
+                    <span style="background:var(--primary-color)12; color:var(--primary-color); padding:4px 12px; border-radius:12px; font-size:12px; font-weight:600;">{{ plant }}</span>
+                {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if pest.symptoms %}
+            <div style="margin-bottom:16px;">
+                <div style="font-size:13px; font-weight:700; color:var(--text-primary); margin-bottom:8px;"><i class="fas fa-eye" style="color:#f59e0b; margin-right:6px;"></i>Symptoms</div>
+                <ul style="list-style:none; padding:0;">
+                {% for s in pest.symptoms %}
+                    <li style="display:flex; align-items:flex-start; margin-bottom:4px;"><span style="width:6px; height:6px; border-radius:3px; background:#f59e0b; margin-top:7px; margin-right:10px; flex-shrink:0;"></span><span style="color:var(--text-secondary); font-size:13px;">{{ s }}</span></li>
+                {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            {% if pest.remedies %}
+            <div style="margin-bottom:16px;">
+                <div style="font-size:13px; font-weight:700; color:var(--text-primary); margin-bottom:8px;"><i class="fas fa-medkit" style="color:#10b981; margin-right:6px;"></i>Remedies</div>
+                <ul style="list-style:none; padding:0;">
+                {% for r in pest.remedies %}
+                    <li style="display:flex; align-items:flex-start; margin-bottom:4px;"><span style="width:6px; height:6px; border-radius:3px; background:#10b981; margin-top:7px; margin-right:10px; flex-shrink:0;"></span><span style="color:var(--text-secondary); font-size:13px;">{{ r }}</span></li>
+                {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            {% if pest.precautions %}
+            <div>
+                <div style="font-size:13px; font-weight:700; color:var(--text-primary); margin-bottom:8px;"><i class="fas fa-shield-alt" style="color:#3b82f6; margin-right:6px;"></i>Prevention</div>
+                <ul style="list-style:none; padding:0;">
+                {% for p in pest.precautions %}
+                    <li style="display:flex; align-items:flex-start; margin-bottom:4px;"><span style="width:6px; height:6px; border-radius:3px; background:#3b82f6; margin-top:7px; margin-right:10px; flex-shrink:0;"></span><span style="color:var(--text-secondary); font-size:13px;">{{ p }}</span></li>
+                {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+    </div>
+</div>
+
+<style>
+.pest-card {
+    background:var(--card-bg);
+    border:1px solid var(--border-color);
+    border-radius:14px;
+    margin-bottom:10px;
+    overflow:hidden;
+    transition:border-color 0.3s;
+}
+.pest-card.expanded {
+    border-color:var(--primary-color);
+}
+.pest-card-header {
+    display:flex;
+    align-items:center;
+    padding:14px 16px;
+    cursor:pointer;
+    transition:background 0.2s;
+}
+.pest-card-header:hover {
+    background:var(--bg-color);
+}
+.pest-card-body {
+    padding:0 16px 16px;
+    border-top:1px solid var(--border-color);
+    padding-top:16px;
+}
+.sev-badge {
+    padding:4px 12px;
+    border-radius:10px;
+    font-size:12px;
+    font-weight:700;
+    white-space:nowrap;
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function togglePest(header) {
+    var card = header.parentElement;
+    var body = card.querySelector('.pest-card-body');
+    var icon = header.querySelector('.fa-chevron-down');
+    var isOpen = body.style.display !== 'none';
+
+    body.style.display = isOpen ? 'none' : 'block';
+    icon.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
+    card.classList.toggle('expanded', !isOpen);
+}
+
+function filterPests() {
+    var search = document.getElementById('pestSearch').value.toLowerCase();
+    var cards = document.querySelectorAll('.pest-card');
+    for (var i = 0; i < cards.length; i++) {
+        var name = cards[i].getAttribute('data-name');
+        var sci = cards[i].getAttribute('data-scientific');
+        var plants = cards[i].getAttribute('data-plants');
+        var match = name.indexOf(search) !== -1 || sci.indexOf(search) !== -1 || plants.indexOf(search) !== -1;
+        cards[i].style.display = match ? 'block' : 'none';
+    }
+}
+</script>
+{% endblock %}

@@ -50,6 +50,13 @@ ml_model/__pycache__/
 LLM TEST.zip
 LLM TEST/
 
+# Training datasets (too large for git)
+dataset/
+IP102-Dataset/
+plantvillage dataset/
+PlantVillage_And_IP102/
+TEST/
+
 # SQLite DB (each developer creates their own)
 instance/agbot.db
 

@@ -7,10 +7,12 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 from datetime import datetime, timedelta
 import base64
+import io
 import json
 import os
 import sys
 import jwt
+import urllib.request
 from functools import wraps
 from werkzeug.utils import secure_filename
 from models import db, User, Scan, Feedback, PestDatabase
@@ -19,7 +21,7 @@ from sqlalchemy.exc import IntegrityError
 # Add ml_model to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'ml_model'))
 from model import get_model
-from knowledge_base import get_pest_info, get_pest_info_by_name, get_all_pest_names
+from knowledge_base import get_pest_info, get_pest_info_by_name, get_all_pest_names, _load as _load_pest_data_raw
 from questionnaire import load_questionnaire, analyze_answers
 
 app = Flask(__name__)
@@ -238,7 +240,7 @@ def api_me(current_user):
 @token_required
 def api_dashboard(current_user):
     user_data, recent_detections, pest_trends, health_distribution = get_user_dashboard_data(current_user.id)
-    weather = {'temperature': 24, 'condition': 'Sunny', 'humidity': 65}
+    weather = get_weather(current_user.location)
 
     return jsonify({
         'user_data': user_data,
@@ -285,9 +287,21 @@ def api_analyze(current_user):
         # Run real AI model inference
         result = run_pest_detection(image_bytes)
 
+        # Save image for history
+        saved_filename = None
+        if 'image' in request.files:
+            saved_filename = filename
+        else:
+            # Save base64 image to file
+            from PIL import Image as PILImage
+            img = PILImage.open(io.BytesIO(image_bytes)).convert('RGB')
+            saved_filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_scan.jpg"
+            img.save(os.path.join(app.config['UPLOAD_FOLDER'], saved_filename), 'JPEG', quality=85)
+
         # Save to DB
         scan = Scan(
             user_id=current_user.id,
+            image_path=saved_filename,
             pest_identified=result.get('pest_identified'),
             pest_scientific=result.get('pest_scientific', ''),
             confidence=result.get('confidence'),
@@ -342,16 +356,7 @@ def api_analyze_symptoms(current_user):
 def api_history(current_user):
     db_scans = Scan.query.filter_by(user_id=current_user.id).order_by(Scan.created_at.desc()).all()
 
-    if db_scans:
-        history = [scan.to_dict() for scan in db_scans]
-    else:
-        history = [
-            {'plant': 'Rose Bush', 'pest': 'Japanese Beetle', 'date': '2025-11-03', 'time': '14:30', 'severity': 'Moderate'},
-            {'plant': 'Tomato Plant', 'pest': 'Aphids', 'date': '2025-11-01', 'time': '09:15', 'severity': 'Mild'},
-            {'plant': 'Cabbage', 'pest': 'Cabbage Worm', 'date': '2025-10-30', 'time': '16:45', 'severity': 'Moderate'},
-            {'plant': 'Bean Plant', 'pest': 'Spider Mites', 'date': '2025-10-28', 'time': '11:20', 'severity': 'Severe'},
-            {'plant': 'Lettuce', 'pest': 'None Detected', 'date': '2025-10-25', 'time': '13:00', 'severity': 'Healthy'}
-        ]
+    history = [scan.to_dict() for scan in db_scans]
 
     total = len(history)
     pests = sum(1 for h in history if h.get('severity') not in ['Healthy', None])
@@ -506,8 +511,8 @@ def index():
     return jsonify({
         'service': 'AGBOT API',
         'status': 'running',
-        'ai_model': 'EfficientNetB0 (PyTorch)',
-        'pest_database': '15 species',
+        'ai_model': 'EfficientNetB0 Fine-tuned (88.3% accuracy)',
+        'pest_database': '18 classes (15 pests + 2 diseases + healthy)',
         'endpoints': [
             '/api/auth/login', '/api/auth/register', '/api/dashboard',
             '/api/analyze', '/api/analyze_symptoms', '/api/history',
@@ -519,20 +524,60 @@ def index():
 # ─── Real AI Analysis Helpers ──────────────────────────────────────────────────
 
 def run_pest_detection(image_bytes):
-    """Run real EfficientNetB0 model inference on image bytes."""
+    """Run fine-tuned EfficientNetB0 model inference on image bytes."""
     model = get_model()
-    predictions = model.predict(image_bytes, top_k=3)
+    predictions = model.predict(image_bytes, top_k=5)
 
     top = predictions[0]
 
-    # No pest detected
-    if top['class_name'] in ('Unrecognized Insect/Leaf', 'Unclear Image / No Pest Found'):
+    # Healthy or no pest detected
+    if top['class_name'] in ('Healthy', 'Unrecognized Insect/Leaf', 'Unclear Image / No Pest Found'):
         return {
             'status': 'Healthy',
             'pest_identified': 'None',
             'confidence': round(top.get('confidence', 0), 1),
             'message': 'Your plant appears to be healthy! No pests detected.',
             'severity': 'Healthy'
+        }
+
+    # Disease classes (from PlantVillage) — no specific pest KB entry
+    if top['class_name'] in ('Leaf Disease', 'Powdery Mildew'):
+        disease_info = {
+            'Leaf Disease': {
+                'description': 'Leaf disease detected — signs of fungal, bacterial, or viral infection on the plant.',
+                'severity': 'High',
+                'remedies': ['Remove and destroy infected leaves immediately', 'Apply copper-based fungicide', 'Improve air circulation around plants', 'Avoid overhead watering', 'Apply neem oil spray every 7 days'],
+                'precautions': ['Practice crop rotation', 'Use disease-resistant varieties', 'Water at soil level, not on leaves', 'Space plants properly for airflow', 'Remove plant debris at end of season'],
+            },
+            'Powdery Mildew': {
+                'description': 'Powdery mildew detected — white powdery coating on leaves caused by fungal infection.',
+                'severity': 'Moderate',
+                'remedies': ['Apply sulfur-based fungicide', 'Spray baking soda solution (1 tbsp per gallon)', 'Use neem oil spray', 'Apply potassium bicarbonate', 'Use milk spray (1:10 ratio with water)'],
+                'precautions': ['Improve air circulation', 'Water at base of plant only', 'Remove infected leaves promptly', 'Avoid overcrowding plants', 'Choose resistant varieties'],
+            }
+        }
+        info = disease_info[top['class_name']]
+        return {
+            'status': 'Disease Detected',
+            'pest_identified': top['class_name'],
+            'pest_scientific': '',
+            'confidence': round(top['confidence'], 1),
+            'damage_pattern': info['description'],
+            'severity': info['severity'],
+            'immediate_action': True,
+            'symptoms': [],
+            'affected_plants': [],
+            'treatments': {
+                'immediate': info['remedies'][:3],
+                'ipm': info['precautions'][:3],
+                'prevention': info['precautions'][3:6]
+            },
+            'chemical_treatments': [r for r in info['remedies'] if any(w in r.lower() for w in ['fungicide', 'sulfur', 'bicarbonate'])],
+            'organic_treatments': [r for r in info['remedies'] if any(w in r.lower() for w in ['neem', 'baking soda', 'milk', 'remove'])],
+            'all_predictions': [
+                {'pest': p['class_name'], 'confidence': round(p['confidence'], 1)}
+                for p in predictions if p.get('confidence', 0) > 0.1
+            ]
         }
 
     # Pest detected — get full info from knowledge base
@@ -779,11 +824,84 @@ def api_questionnaire_analyze(current_user):
     return jsonify({'success': False, 'error': 'Could not identify pest'}), 400
 
 
+# ─── Weather ───────────────────────────────────────────────────────────────────
+
+WEATHER_API_KEY = 'demo'  # Replace with your OpenWeatherMap API key (free at openweathermap.org)
+
+def get_weather(location=None):
+    """Fetch real weather data from OpenWeatherMap API."""
+    if WEATHER_API_KEY == 'demo' or not location:
+        return {'temperature': 24, 'condition': 'Sunny', 'humidity': 65, 'icon': 'sun.max.fill'}
+
+    try:
+        url = f"http://api.openweathermap.org/data/2.5/weather?q={location}&appid={WEATHER_API_KEY}&units=metric"
+        req = urllib.request.Request(url)
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read().decode())
+            condition = data['weather'][0]['main']
+            icon_map = {'Clear': 'sun.max.fill', 'Clouds': 'cloud.fill', 'Rain': 'cloud.rain.fill',
+                        'Drizzle': 'cloud.drizzle.fill', 'Thunderstorm': 'cloud.bolt.fill',
+                        'Snow': 'cloud.snow.fill', 'Mist': 'cloud.fog.fill', 'Fog': 'cloud.fog.fill'}
+            return {
+                'temperature': round(data['main']['temp']),
+                'condition': condition,
+                'humidity': data['main']['humidity'],
+                'icon': icon_map.get(condition, 'cloud.fill'),
+                'wind': round(data['wind']['speed']),
+                'location': data['name'],
+            }
+    except Exception as e:
+        print(f"Weather API error: {e}")
+        return {'temperature': 24, 'condition': 'Sunny', 'humidity': 65, 'icon': 'sun.max.fill'}
+
+
+# ─── Image Serving ─────────────────────────────────────────────────────────────
+
+@app.route('/api/uploads/<filename>', methods=['GET'])
+def serve_upload(filename):
+    """Serve uploaded scan images."""
+    from flask import send_from_directory
+    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+
+# ─── Pest Library ─────────────────────────────────────────────────────────────
+
+@app.route('/api/pest_library', methods=['GET'])
+def api_pest_library():
+    """Return full pest knowledge base for the encyclopedia."""
+    pest_data = _load_pest_data_raw()
+    pests = pest_data.get('pests', [])
+
+    # Add the disease entries
+    pests_plus = list(pests) + [
+        {
+            'id': 100, 'name': 'Leaf Disease', 'scientific_name': 'Various pathogens',
+            'description': 'Leaf diseases caused by fungi, bacteria, or viruses that create spots, blights, and discoloration on plant foliage.',
+            'severity_level': 'High',
+            'affected_plants': ['Tomatoes', 'Potatoes', 'Grapes', 'Apples', 'Corn', 'Peppers', 'Strawberries'],
+            'symptoms': ['Brown or black spots on leaves', 'Yellowing around spots', 'Premature leaf drop', 'Wilting', 'Lesions on stems'],
+            'precautions': ['Practice crop rotation', 'Use disease-resistant varieties', 'Water at soil level', 'Space plants properly', 'Remove debris'],
+            'remedies': ['Apply copper-based fungicide', 'Remove infected leaves', 'Improve air circulation', 'Apply neem oil spray', 'Use compost tea spray']
+        },
+        {
+            'id': 101, 'name': 'Powdery Mildew', 'scientific_name': 'Erysiphales',
+            'description': 'Fungal disease causing white powdery coating on leaves. Thrives in warm, dry conditions with poor air circulation.',
+            'severity_level': 'Moderate',
+            'affected_plants': ['Squash', 'Cucumbers', 'Roses', 'Grapes', 'Cherries', 'Peas', 'Zucchini'],
+            'symptoms': ['White powdery spots on leaves', 'Curling or distorted leaves', 'Stunted growth', 'Premature leaf drop', 'Reduced fruit quality'],
+            'precautions': ['Improve air circulation', 'Water at base only', 'Remove infected leaves', 'Avoid overcrowding', 'Choose resistant varieties'],
+            'remedies': ['Apply sulfur-based fungicide', 'Spray baking soda solution', 'Use neem oil spray', 'Apply potassium bicarbonate', 'Milk spray (1:10 ratio)']
+        }
+    ]
+
+    return jsonify(pests_plus)
+
+
 # ─── Health Check ──────────────────────────────────────────────────────────────
 
 @app.route('/api/health', methods=['GET'])
 def api_health():
-    return jsonify({'status': 'ok', 'service': 'agbot-api', 'ai_model': 'EfficientNetB0'})
+    return jsonify({'status': 'ok', 'service': 'agbot-api', 'ai_model': 'EfficientNetB0 Fine-tuned'})
 
 
 if __name__ == '__main__':

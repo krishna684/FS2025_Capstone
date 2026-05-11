@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welcome to AGBOT</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:#fff; overflow:hidden; height:100vh; }
+        .onboarding { display:flex; height:100vh; transition:transform 0.5s cubic-bezier(0.4,0,0.2,1); }
+        .slide { min-width:100vw; height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:40px; text-align:center; }
+        .slide-icon { width:120px; height:120px; border-radius:60px; display:flex; align-items:center; justify-content:center; margin-bottom:32px; font-size:48px; color:#fff; }
+        .slide h1 { font-size:32px; font-weight:800; color:#111; margin-bottom:8px; }
+        .slide .subtitle { font-size:18px; font-weight:700; margin-bottom:20px; }
+        .slide p { font-size:16px; color:#6b7280; line-height:1.6; max-width:500px; margin-bottom:32px; }
+        .features { list-style:none; text-align:left; max-width:350px; }
+        .features li { display:flex; align-items:center; gap:12px; margin-bottom:12px; font-size:15px; color:#374151; }
+        .features li i { width:24px; height:24px; border-radius:12px; display:flex; align-items:center; justify-content:center; color:#fff; font-size:12px; }
+        .bottom-bar { position:fixed; bottom:0; left:0; right:0; padding:24px 40px 40px; display:flex; align-items:center; justify-content:space-between; background:linear-gradient(transparent, #fff 30%); }
+        .dots { display:flex; gap:8px; }
+        .dot { width:8px; height:8px; border-radius:4px; background:#d1d5db; transition:all 0.3s; }
+        .dot.active { width:28px; }
+        .skip-btn { color:#6b7280; font-size:15px; font-weight:600; cursor:pointer; border:none; background:none; padding:8px 16px; }
+        .next-btn { padding:14px 36px; border-radius:14px; color:#fff; font-size:16px; font-weight:700; border:none; cursor:pointer; transition:transform 0.2s, box-shadow 0.2s; box-shadow:0 4px 12px rgba(0,0,0,0.15); }
+        .next-btn:hover { transform:translateY(-2px); box-shadow:0 6px 20px rgba(0,0,0,0.2); }
+        .btn-text, .btn-icon { display:inline; }
+    </style>
+</head>
+<body>
+    <div class="onboarding" id="slides">
+        <div class="slide">
+            <div class="slide-icon" style="background:linear-gradient(135deg,#10b981,#059669)"><i class="fas fa-leaf"></i></div>
+            <h1>Welcome to AGBOT</h1>
+            <div class="subtitle" style="color:#10b981">From Data to Harvest</div>
+            <p>AI-powered plant pest detection that helps you protect your crops and increase yield.</p>
+            <ul class="features">
+                <li><i style="background:#10b981" class="fas fa-check"></i> Instant pest identification</li>
+                <li><i style="background:#10b981" class="fas fa-check"></i> 18 pest & disease classes</li>
+                <li><i style="background:#10b981" class="fas fa-check"></i> 88% AI accuracy</li>
+            </ul>
+        </div>
+        <div class="slide">
+            <div class="slide-icon" style="background:linear-gradient(135deg,#3b82f6,#2563eb)"><i class="fas fa-camera"></i></div>
+            <h1>Scan Your Plants</h1>
+            <div class="subtitle" style="color:#3b82f6">Quick & Easy</div>
+            <p>Take a photo of any affected plant leaf and get instant AI analysis with treatment recommendations.</p>
+            <ul class="features">
+                <li><i style="background:#3b82f6" class="fas fa-check"></i> Camera or gallery upload</li>
+                <li><i style="background:#3b82f6" class="fas fa-check"></i> 3-second AI analysis</li>
+                <li><i style="background:#3b82f6" class="fas fa-check"></i> Detailed scan results</li>
+            </ul>
+        </div>
+        <div class="slide">
+            <div class="slide-icon" style="background:linear-gradient(135deg,#8b5cf6,#7c3aed)"><i class="fas fa-comments"></i></div>
+            <h1>Ask the Expert</h1>
+            <div class="subtitle" style="color:#8b5cf6">Chat with AGBOT</div>
+            <p>Get answers about pest symptoms, remedies, and prevention tips from our AI assistant.</p>
+            <ul class="features">
+                <li><i style="background:#8b5cf6" class="fas fa-check"></i> 15+ pest species covered</li>
+                <li><i style="background:#8b5cf6" class="fas fa-check"></i> Treatment advice</li>
+                <li><i style="background:#8b5cf6" class="fas fa-check"></i> Prevention tips</li>
+            </ul>
+        </div>
+        <div class="slide">
+            <div class="slide-icon" style="background:linear-gradient(135deg,#f59e0b,#d97706)"><i class="fas fa-chart-line"></i></div>
+            <h1>Track & Improve</h1>
+            <div class="subtitle" style="color:#f59e0b">Smart Dashboard</div>
+            <p>Monitor your scan history, track pest trends, and export reports for data-driven farming.</p>
+            <ul class="features">
+                <li><i style="background:#f59e0b" class="fas fa-check"></i> Scan history with images</li>
+                <li><i style="background:#f59e0b" class="fas fa-check"></i> PDF reports & sharing</li>
+                <li><i style="background:#f59e0b" class="fas fa-check"></i> Severity analytics</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="bottom-bar">
+        <button class="skip-btn" id="skipBtn" onclick="finish()">Skip</button>
+        <div class="dots" id="dots"></div>
+        <button class="next-btn" id="nextBtn" style="background:linear-gradient(135deg,#10b981,#059669)" onclick="next()">
+            <span class="btn-text">Next</span> <i class="fas fa-arrow-right btn-icon"></i>
+        </button>
+    </div>
+
+    <script>
+        var colors = ['#10b981','#3b82f6','#8b5cf6','#f59e0b'];
+        var gradients = ['linear-gradient(135deg,#10b981,#059669)','linear-gradient(135deg,#3b82f6,#2563eb)','linear-gradient(135deg,#8b5cf6,#7c3aed)','linear-gradient(135deg,#f59e0b,#d97706)'];
+        var current = 0;
+        var total = 4;
+        var slides = document.getElementById('slides');
+        var dotsEl = document.getElementById('dots');
+        var nextBtn = document.getElementById('nextBtn');
+        var skipBtn = document.getElementById('skipBtn');
+
+        for (var i = 0; i < total; i++) {
+            var d = document.createElement('div');
+            d.className = 'dot' + (i === 0 ? ' active' : '');
+            d.style.backgroundColor = i === 0 ? colors[0] : '#d1d5db';
+            dotsEl.appendChild(d);
+        }
+
+        function goTo(idx) {
+            current = idx;
+            slides.style.transform = 'translateX(-' + (current * 100) + 'vw)';
+            var allDots = document.querySelectorAll('.dot');
+            for (var i = 0; i < allDots.length; i++) {
+                allDots[i].className = 'dot' + (i === current ? ' active' : '');
+                allDots[i].style.backgroundColor = i === current ? colors[current] : '#d1d5db';
+            }
+            nextBtn.style.background = gradients[current];
+            var btnText = nextBtn.querySelector('.btn-text');
+            if (current === total - 1) {
+                btnText.textContent = 'Get Started';
+                skipBtn.style.display = 'none';
+            } else {
+                btnText.textContent = 'Next';
+                skipBtn.style.display = 'block';
+            }
+        }
+
+        function next() {
+            if (current < total - 1) goTo(current + 1);
+            else finish();
+        }
+
+        function finish() {
+            window.location.href = '/';
+        }
+
+        var startX = 0;
+        document.addEventListener('touchstart', function(e) { startX = e.touches[0].clientX; });
+        document.addEventListener('touchend', function(e) {
+            var diff = startX - e.changedTouches[0].clientX;
+            if (diff > 50 && current < total - 1) goTo(current + 1);
+            if (diff < -50 && current > 0) goTo(current - 1);
+        });
+    </script>
+</body>
+</html>

@@ -80,11 +80,13 @@ class Scan(db.Model):
         """Convert scan to dictionary"""
         return {
             'id': self.id,
+            'image_path': self.image_path,
             'pest_identified': self.pest_identified,
             'pest_scientific': self.pest_scientific,
             'confidence': self.confidence,
             'status': self.status,
             'severity': self.severity,
+            'damage_pattern': self.damage_pattern,
             'crop_type': self.crop_type,
             'field_name': self.field_name,
             'created_at': self.created_at.isoformat() if self.created_at else None,

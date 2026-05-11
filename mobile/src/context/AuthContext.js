@@ -19,7 +19,13 @@ export function AuthProvider({ children }) {
   }, []);
 
   async function login(email, password) { const data = await api.login(email, password); setUser(data.user); return data; }
-  async function register(userData) { const data = await api.register(userData); setUser(data.user); return data; }
+  async function register(userData) {
+    const data = await api.register(userData);
+    // Mark as new user so onboarding shows after registration
+    await AsyncStorage.setItem('show_onboarding_after_register', 'true');
+    setUser(data.user);
+    return data;
+  }
   async function logout() { await api.logout(); setUser(null); }
   async function refreshUser() { try { const data = await api.getMe(); setUser(data.user); await AsyncStorage.setItem('user', JSON.stringify(data.user)); } catch (e) {} }
 

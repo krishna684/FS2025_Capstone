@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl, TextInput, ActivityIndicator, Animated, LayoutAnimation, Platform, UIManager } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, RefreshControl, TextInput, ActivityIndicator, Animated, LayoutAnimation, Platform, UIManager, Dimensions, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import Svg, { Circle } from 'react-native-svg';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import api from '../services/api';
@@ -9,7 +10,57 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
+const SW = Dimensions.get('window').width;
 const FILTERS = ['All', 'Healthy', 'Mild', 'Moderate', 'High', 'Severe'];
+
+function MiniDonut({ data, size, strokeWidth, theme }) {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const center = size / 2;
+  const total = data.reduce((sum, d) => sum + d.value, 0) || 1;
+  let accumulated = 0;
+  const segments = data.filter(d => d.value > 0).map(d => {
+    const pct = d.value / total;
+    const offset = circumference * (1 - pct);
+    const rotation = accumulated * 360 - 90;
+    accumulated += pct;
+    return { ...d, offset, rotation };
+  });
+
+  return (
+    <View style={{ width: size, height: size }}>
+      <Svg width={size} height={size}>
+        <Circle cx={center} cy={center} r={radius} stroke={theme.border} strokeWidth={strokeWidth} fill="none" />
+        {segments.map((seg, i) => (
+          <Circle key={i} cx={center} cy={center} r={radius} stroke={seg.color} strokeWidth={strokeWidth} fill="none"
+            strokeDasharray={`${circumference}`} strokeDashoffset={seg.offset} strokeLinecap="round"
+            transform={`rotate(${seg.rotation}, ${center}, ${center})`} />
+        ))}
+      </Svg>
+      <View style={{ position:'absolute', top:0, left:0, right:0, bottom:0, alignItems:'center', justifyContent:'center' }}>
+        <Text style={{ fontSize: 14, fontWeight: '800', color: theme.text }}>{total}</Text>
+        <Text style={{ fontSize: 8, color: theme.textSecondary }}>scans</Text>
+      </View>
+    </View>
+  );
+}
+
+function SeverityBars({ data, theme }) {
+  const max = Math.max(...data.map(d => d.value), 1);
+  return (
+    <View style={{ flex: 1, marginLeft: 16 }}>
+      {data.map((d, i) => (
+        <View key={i} style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 6 }}>
+          <Text style={{ width: 60, fontSize: 11, color: theme.textSecondary, fontWeight: '600' }}>{d.label}</Text>
+          <View style={{ flex: 1, height: 14, backgroundColor: theme.border, borderRadius: 7, marginHorizontal: 8, overflow: 'hidden' }}>
+            <View style={{ width: `${(d.value / max) * 100}%`, height: 14, backgroundColor: d.color, borderRadius: 7 }} />
+          </View>
+          <Text style={{ width: 24, fontSize: 12, fontWeight: '700', color: d.color, textAlign: 'right' }}>{d.value}</Text>
+        </View>
+      ))}
+    </View>
+  );
+}
 const sevColor = (sv, t) => ({ Healthy: t.success, Mild: t.info, Moderate: t.warning, Severe: t.danger, High: t.danger }[sv] || t.textSecondary);
 const sevIcon = (sv) => ({ Healthy: 'checkmark-circle', Mild: 'information-circle', Moderate: 'alert-circle', High: 'warning', Severe: 'skull' }[sv] || 'help-circle');
 
@@ -69,6 +120,14 @@ function ExpandableItem({ item, theme }) {
       {/* Expanded details */}
       {expanded && (
         <View style={{ marginTop: 14, borderTopWidth: 1, borderTopColor: theme.border, paddingTop: 14 }}>
+          {/* Scan image */}
+          {item.image_path && (
+            <Image
+              source={{ uri: api.getImageUrl(item.image_path) }}
+              style={{ width: '100%', height: 160, borderRadius: 10, marginBottom: 12, backgroundColor: theme.border }}
+              resizeMode="cover"
+            />
+          )}
           {/* Confidence bar */}
           {conf != null && (
             <View style={{ marginBottom: 12 }}>
@@ -157,6 +216,28 @@ export default function HistoryScreen() {
         ))}
       </View>
 
+      {/* Severity chart */}
+      {history.length > 0 && (() => {
+        const counts = { Healthy: 0, Mild: 0, Moderate: 0, High: 0, Severe: 0 };
+        history.forEach(h => { const sv = h.severity || 'Unknown'; if (counts[sv] !== undefined) counts[sv]++; });
+        const chartData = [
+          { label: 'Healthy', value: counts.Healthy, color: theme.success },
+          { label: 'Mild', value: counts.Mild, color: theme.info },
+          { label: 'Moderate', value: counts.Moderate, color: '#f59e0b' },
+          { label: 'High', value: counts.High, color: theme.danger },
+          { label: 'Severe', value: counts.Severe, color: '#dc2626' },
+        ];
+        return (
+          <View style={[s.chartCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <Text style={{ fontSize: 14, fontWeight: '700', color: theme.text, marginBottom: 12 }}>Severity Distribution</Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <MiniDonut data={chartData} size={90} strokeWidth={14} theme={theme} />
+              <SeverityBars data={chartData} theme={theme} />
+            </View>
+          </View>
+        );
+      })()}
+
       {/* Search bar */}
       <View style={[s.searchRow, { borderColor: theme.border, backgroundColor: theme.card }]}>
         <Ionicons name="search" size={20} color={theme.textSecondary} />
@@ -212,6 +293,7 @@ const s = StyleSheet.create({
   statsRow: { flexDirection: 'row', padding: 16, paddingBottom: 10 },
   statBox: { flex: 1, padding: 12, borderRadius: 12, borderWidth: 1, alignItems: 'center', marginHorizontal: 4 },
   statVal: { fontSize: 22, fontWeight: '800', marginTop: 4 },
+  chartCard: { marginHorizontal: 16, marginBottom: 10, padding: 14, borderRadius: 14, borderWidth: 1 },
   searchRow: { flexDirection: 'row', alignItems: 'center', marginHorizontal: 16, marginBottom: 10, paddingHorizontal: 14, height: 44, borderRadius: 12, borderWidth: 1 },
   searchInput: { flex: 1, marginLeft: 10, fontSize: 14 },
   filterChip: { paddingHorizontal: 18, paddingVertical: 8, borderRadius: 20, borderWidth: 1, marginRight: 8 },

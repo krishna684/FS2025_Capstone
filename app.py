@@ -15,7 +15,7 @@ from sqlalchemy.exc import IntegrityError
 # Add ml_model to path for imports
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'ml_model'))
 from model import get_model
-from knowledge_base import get_pest_info_by_name, get_all_pest_names
+from knowledge_base import get_pest_info_by_name, get_all_pest_names, _load as _load_pest_data_raw
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-here'  # Change this in production
@@ -94,21 +94,71 @@ ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp'}
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# Mock data storage (in production, use a database)
 scan_history = []
-user_data = {
-    'name': 'Farmer',
-    'location': 'Wireframe',
-    'total_scans': 247,
-    'healthy_percentage': 89,
-    'pests_detected': 12,
-    'ai_accuracy': 94,
-    'model_accuracy': 94.2,
-    'inference_time': 0.8
-}
 
-# Sample pest data
-recent_detections = [
+
+def get_web_dashboard_data(user_id):
+    """Build real dashboard data from the database for the web app."""
+    from sqlalchemy import extract
+
+    total_scans = Scan.query.filter_by(user_id=user_id).count()
+    healthy_scans = Scan.query.filter_by(user_id=user_id, severity='Healthy').count()
+    pest_scans = total_scans - healthy_scans
+    healthy_pct = round((healthy_scans / total_scans * 100) if total_scans > 0 else 0)
+
+    user_data = {
+        'total_scans': total_scans,
+        'healthy_percentage': healthy_pct,
+        'pests_detected': pest_scans,
+        'ai_accuracy': 88,
+        'model_accuracy': 88.3,
+        'inference_time': 0.5
+    }
+
+    recent = Scan.query.filter_by(user_id=user_id).order_by(Scan.created_at.desc()).limit(5).all()
+    recent_detections = [{
+        'id': s.id,
+        'pest': s.pest_identified or 'Unknown',
+        'crop': s.crop_type or 'Plant',
+        'field': s.field_name or 'Field',
+        'severity': s.severity or 'Unknown',
+        'percentage': round(s.confidence or 0),
+        'date': s.created_at.strftime('%Y-%m-%d') if s.created_at else '',
+        'time': s.created_at.strftime('%H:%M') if s.created_at else ''
+    } for s in recent]
+
+    now = datetime.now()
+    months, values = [], []
+    for i in range(5, -1, -1):
+        m = now.month - i
+        y = now.year
+        if m <= 0:
+            m += 12; y -= 1
+        months.append(datetime(y, m, 1).strftime('%b'))
+        values.append(Scan.query.filter_by(user_id=user_id).filter(
+            extract('month', Scan.created_at) == m,
+            extract('year', Scan.created_at) == y
+        ).count())
+    pest_trends = {'months': months, 'values': values}
+
+    if total_scans > 0:
+        mild = Scan.query.filter_by(user_id=user_id, severity='Mild').count()
+        moderate = Scan.query.filter_by(user_id=user_id, severity='Moderate').count()
+        high = Scan.query.filter_by(user_id=user_id).filter(Scan.severity.in_(['High', 'Severe'])).count()
+        health_distribution = {
+            'healthy': round(healthy_scans / total_scans * 100),
+            'pest_damage': round((mild + moderate) / total_scans * 100),
+            'disease': round(high / total_scans * 100),
+            'critical': round(Scan.query.filter_by(user_id=user_id, severity='Severe').count() / total_scans * 100),
+        }
+    else:
+        health_distribution = {'healthy': 0, 'pest_damage': 0, 'disease': 0, 'critical': 0}
+
+    return user_data, recent_detections, pest_trends, health_distribution
+
+
+# Legacy sample detections (only shown if user has zero scans)
+_sample_detections = [
     {
         'id': 1,
         'pest': 'Japanese Beetle',
@@ -140,12 +190,6 @@ recent_detections = [
         'time': '16:45'
     }
 ]
-
-# Pest detection trends data
-pest_trends = {
-    'months': ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
-    'values': [12, 7, 14, 21, 18, 23]
-}
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -218,10 +262,64 @@ def register():
             flash('Email or phone is already in use.', 'danger')
             return redirect(url_for('register'))
 
-        flash('Account created successfully! Please log in.', 'success')
-        return redirect(url_for('login'))
+        # Auto-login and redirect to onboarding
+        login_user(user)
+        return redirect(url_for('onboarding'))
 
     return render_template('register.html')
+
+@app.route('/api/chat', methods=['POST'])
+@login_required
+def web_chat():
+    data = request.get_json()
+    message = data.get('message', '').strip()
+    if not message:
+        return jsonify({'reply': 'Please type a message.'}), 400
+
+    msg_lower = message.lower()
+    all_names = get_all_pest_names()
+    matched_pest = None
+    for name in all_names:
+        if name.lower() in msg_lower:
+            matched_pest = get_pest_info_by_name(name)
+            break
+
+    if matched_pest:
+        if any(w in msg_lower for w in ['remedy', 'treat', 'how to kill', 'get rid', 'remove', 'fix', 'cure']):
+            items = matched_pest.get('remedies', [])[:4]
+            reply = f"For {matched_pest['name']}, you should: " + "; ".join(items) + "."
+        elif any(w in msg_lower for w in ['symptom', 'sign', 'look like', 'identify', 'detect']):
+            items = matched_pest.get('symptoms', [])[:4]
+            reply = f"Signs of {matched_pest['name']}: " + "; ".join(items) + "."
+        elif any(w in msg_lower for w in ['prevent', 'protect', 'avoid', 'precaution']):
+            items = matched_pest.get('precautions', [])[:4]
+            reply = f"To prevent {matched_pest['name']}: " + "; ".join(items) + "."
+        else:
+            reply = f"{matched_pest['name']} ({matched_pest.get('scientific_name', '')}): {matched_pest.get('description', '')} Severity: {matched_pest.get('severity_level', 'Unknown')}. Ask me about remedies, symptoms, or prevention!"
+    else:
+        reply = "I'm AGBOT, your agricultural pest detection assistant! I can help with: " + ", ".join(all_names) + ". Ask me about any of these pests!"
+
+    return jsonify({'reply': reply})
+
+@app.route('/onboarding')
+@login_required
+def onboarding():
+    return render_template('onboarding.html')
+
+@app.route('/chat_page')
+@login_required
+def chat_page():
+    return render_template('chat.html')
+
+@app.route('/pest_library')
+@login_required
+def pest_library():
+    pest_data = _load_pest_data_raw()
+    pests = pest_data.get('pests', [])
+    # Add disease entries
+    pests.append({'id': 100, 'name': 'Leaf Disease', 'scientific_name': 'Various pathogens', 'description': 'Leaf diseases caused by fungi, bacteria, or viruses.', 'severity_level': 'High', 'affected_plants': ['Tomatoes', 'Potatoes', 'Grapes', 'Apples', 'Corn'], 'symptoms': ['Brown or black spots', 'Yellowing around spots', 'Premature leaf drop', 'Wilting'], 'precautions': ['Crop rotation', 'Disease-resistant varieties', 'Water at soil level', 'Space plants properly'], 'remedies': ['Copper-based fungicide', 'Remove infected leaves', 'Neem oil spray', 'Improve circulation']})
+    pests.append({'id': 101, 'name': 'Powdery Mildew', 'scientific_name': 'Erysiphales', 'description': 'Fungal disease causing white powdery coating on leaves.', 'severity_level': 'Moderate', 'affected_plants': ['Squash', 'Cucumbers', 'Roses', 'Grapes', 'Cherries'], 'symptoms': ['White powdery spots', 'Curling leaves', 'Stunted growth', 'Reduced fruit quality'], 'precautions': ['Improve air circulation', 'Water at base only', 'Remove infected leaves', 'Avoid overcrowding'], 'remedies': ['Sulfur-based fungicide', 'Baking soda solution', 'Neem oil spray', 'Milk spray (1:10 ratio)']})
+    return render_template('pest_library.html', pests=pests)
 
 @app.route('/logout')
 @login_required
@@ -379,31 +477,16 @@ def export_profile():
 @app.route('/')
 @login_required
 def index():
-    # Calculate weekly change
-    weekly_change = '+12% this week'
-    monthly_change = '+5% vs last month'
-    
-    # Weather data
-    weather = {
-        'temperature': 24,
-        'condition': 'Sunny',
-        'humidity': 65
-    }
-    
-    # Plant health distribution
-    health_distribution = {
-        'healthy': 85,
-        'pest_damage': 8,
-        'disease': 5,
-        'critical': 2
-    }
-    
-    return render_template('index.html', 
+    user_data, recent_detections, pest_trends, health_distribution = get_web_dashboard_data(current_user.id)
+
+    weather = {'temperature': 24, 'condition': 'Sunny', 'humidity': 65}
+
+    return render_template('index.html',
                          user_data=user_data,
                          recent_detections=recent_detections[:3],
                          pest_trends=pest_trends,
-                         weekly_change=weekly_change,
-                         monthly_change=monthly_change,
+                         weekly_change='',
+                         monthly_change='',
                          weather=weather,
                          health_distribution=health_distribution,
                          current_date=datetime.now().strftime('%A, %B %d, %Y'))
@@ -435,10 +518,10 @@ def analyze_symptoms():
         # Store in database
         scan = Scan(
             user_id=current_user.id,
-            pest_name=analysis_result['disease_name'],
+            pest_identified=analysis_result['disease_name'],
             confidence=analysis_result['confidence'],
             severity=analysis_result.get('severity', 'Unknown'),
-            scan_type='text_description'
+            status='Analyzed'
         )
         db.session.add(scan)
         db.session.commit()
@@ -538,52 +621,21 @@ def analyze_text_symptoms(symptoms, plant_type=''):
     }
 
 @app.route('/history')
+@login_required
 def history():
-    # Get scan history with sample data
-    history_data = [
-        {
-            'plant': 'Rose Bush',
-            'pest': 'Japanese Beetle',
-            'date': '2025-11-03',
-            'time': '14:30',
-            'severity': 'Moderate'
-        },
-        {
-            'plant': 'Tomato Plant',
-            'pest': 'Aphids',
-            'date': '2025-11-01',
-            'time': '09:15',
-            'severity': 'Mild'
-        },
-        {
-            'plant': 'Cabbage',
-            'pest': 'Cabbage Worm',
-            'date': '2025-10-30',
-            'time': '16:45',
-            'severity': 'Moderate'
-        },
-        {
-            'plant': 'Bean Plant',
-            'pest': 'Spider Mites',
-            'date': '2025-10-28',
-            'time': '11:20',
-            'severity': 'Severe'
-        },
-        {
-            'plant': 'Lettuce',
-            'pest': 'None Detected',
-            'date': '2025-10-25',
-            'time': '13:00',
-            'severity': 'Healthy'
-        }
-    ]
-    
+    db_scans = Scan.query.filter_by(user_id=current_user.id).order_by(Scan.created_at.desc()).all()
+    history_data = [scan.to_dict() for scan in db_scans]
+
+    total = len(history_data)
+    pests = sum(1 for h in history_data if h.get('severity') not in ['Healthy', None])
+    healthy = total - pests
+
     stats = {
-        'total_scans': 12,
-        'pests_found': 8,
-        'healthy': 4
+        'total_scans': total,
+        'pests_found': pests,
+        'healthy': healthy
     }
-    
+
     return render_template('history.html', history=history_data, stats=stats)
 
 @app.route('/help')
@@ -603,6 +655,7 @@ def about():
     return render_template('about.html', team=team)
 
 @app.route('/analyze', methods=['POST'])
+@login_required
 def analyze():
     """Handle image upload and real AI analysis"""
     try:
@@ -634,17 +687,28 @@ def analyze():
         # Run real AI model inference
         analysis_result = run_pest_detection(image_bytes)
 
-        # Save a copy as latest_scan.jpg for the results page
+        # Save image
         from PIL import Image as PILImage
         img = PILImage.open(io.BytesIO(image_bytes)).convert('RGB')
-        latest_path = os.path.join(app.config['UPLOAD_FOLDER'], 'latest_scan.jpg')
-        img.save(latest_path, 'JPEG', quality=85)
+        saved_filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_scan.jpg"
+        img.save(os.path.join(app.config['UPLOAD_FOLDER'], saved_filename), 'JPEG', quality=85)
+        # Also save as latest_scan.jpg for the results page display
+        img.save(os.path.join(app.config['UPLOAD_FOLDER'], 'latest_scan.jpg'), 'JPEG', quality=85)
 
-        # Store in history
-        scan_history.append({
-            'timestamp': datetime.now().isoformat(),
-            'result': analysis_result
-        })
+        # Save to database
+        scan = Scan(
+            user_id=current_user.id,
+            image_path=saved_filename,
+            pest_identified=analysis_result.get('pest_identified'),
+            pest_scientific=analysis_result.get('pest_scientific', ''),
+            confidence=analysis_result.get('confidence'),
+            status=analysis_result.get('status'),
+            severity=analysis_result.get('severity', 'Unknown'),
+            damage_pattern=analysis_result.get('damage_pattern', '')
+        )
+        db.session.add(scan)
+        db.session.commit()
+        analysis_result['scan_id'] = scan.id
 
         # Store result in session for the results page
         session['last_scan_result'] = analysis_result
@@ -657,6 +721,7 @@ def analyze():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/results')
+@login_required
 def results():
     """Display analysis results"""
     # Check for text-based analysis first
@@ -710,14 +775,52 @@ def run_pest_detection(image_bytes):
 
     top = predictions[0]
 
-    # No pest detected
-    if top['class_name'] in ('Unrecognized Insect/Leaf', 'Unclear Image / No Pest Found'):
+    # Healthy or no pest detected
+    if top['class_name'] in ('Healthy', 'Unrecognized Insect/Leaf', 'Unclear Image / No Pest Found'):
         return {
             'status': 'Healthy',
             'pest_identified': 'None',
             'confidence': round(top.get('confidence', 0), 1),
             'message': 'Your plant appears to be healthy! No pests detected.',
             'severity': 'Healthy'
+        }
+
+    # Disease classes
+    if top['class_name'] in ('Leaf Disease', 'Powdery Mildew'):
+        disease_info = {
+            'Leaf Disease': {
+                'description': 'Leaf disease detected — signs of fungal, bacterial, or viral infection.',
+                'severity': 'High',
+                'remedies': ['Remove and destroy infected leaves', 'Apply copper-based fungicide', 'Improve air circulation', 'Avoid overhead watering', 'Apply neem oil spray every 7 days'],
+                'precautions': ['Practice crop rotation', 'Use disease-resistant varieties', 'Water at soil level', 'Space plants properly', 'Remove plant debris at end of season'],
+            },
+            'Powdery Mildew': {
+                'description': 'Powdery mildew detected — white powdery coating on leaves.',
+                'severity': 'Moderate',
+                'remedies': ['Apply sulfur-based fungicide', 'Spray baking soda solution', 'Use neem oil spray', 'Apply potassium bicarbonate', 'Use milk spray (1:10 ratio)'],
+                'precautions': ['Improve air circulation', 'Water at base only', 'Remove infected leaves', 'Avoid overcrowding', 'Choose resistant varieties'],
+            }
+        }
+        info = disease_info[top['class_name']]
+        return {
+            'status': 'Disease Detected',
+            'pest_identified': top['class_name'],
+            'pest_scientific': '',
+            'confidence': round(top['confidence'], 1),
+            'damage_pattern': info['description'],
+            'severity': info['severity'],
+            'immediate_action': True,
+            'treatments': {
+                'immediate': info['remedies'][:3],
+                'ipm': info['precautions'][:3],
+                'prevention': info['precautions'][3:6]
+            },
+            'chemical_treatments': [r for r in info['remedies'] if any(w in r.lower() for w in ['fungicide', 'sulfur', 'bicarbonate'])],
+            'organic_treatments': [r for r in info['remedies'] if any(w in r.lower() for w in ['neem', 'baking soda', 'milk', 'remove'])],
+            'all_predictions': [
+                {'pest': p['class_name'], 'confidence': round(p['confidence'], 1)}
+                for p in predictions if p.get('confidence', 0) > 0.1
+            ]
         }
 
     # Pest detected — get full info from knowledge base
@@ -755,15 +858,17 @@ def run_pest_detection(image_bytes):
     }
 
 @app.route('/api/stats')
+@login_required
 def get_stats():
     """API endpoint for dashboard statistics"""
+    ud, detections, trends, _ = get_web_dashboard_data(current_user.id)
     return jsonify({
-        'total_scans': user_data['total_scans'],
-        'healthy_percentage': user_data['healthy_percentage'],
-        'pests_detected': user_data['pests_detected'],
-        'ai_accuracy': user_data['ai_accuracy'],
-        'recent_detections': recent_detections[:5],
-        'pest_trends': pest_trends
+        'total_scans': ud['total_scans'],
+        'healthy_percentage': ud['healthy_percentage'],
+        'pests_detected': ud['pests_detected'],
+        'ai_accuracy': ud['ai_accuracy'],
+        'recent_detections': detections[:5],
+        'pest_trends': trends
     })
 
 if __name__ == '__main__':
@@ -825,7 +930,7 @@ if __name__ == '__main__':
 
     print("\n  AGBOT Web Server (AI-Powered)")
     print("  ─────────────────────────────")
-    print("  Running on http://0.0.0.0:5001")
-    print("  AI Model: EfficientNetB0 (PyTorch)")
-    print("  Pest Database: 15 species\n")
-    app.run(debug=True, host='0.0.0.0', port=5001)
+    print("  Running on http://0.0.0.0:5002")
+    print("  AI Model: EfficientNetB0 Fine-tuned (88.3%)")
+    print("  Pest Database: 18 classes\n")
+    app.run(debug=True, host='0.0.0.0', port=5002)

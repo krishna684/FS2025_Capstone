@@ -1,13 +1,69 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, Dimensions, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { LineChart, PieChart } from 'react-native-chart-kit';
+import { LineChart } from 'react-native-chart-kit';
+import Svg, { Circle } from 'react-native-svg';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { useLanguage } from '../context/LanguageContext';
 import api from '../services/api';
 
 const W = Dimensions.get('window').width;
+
+function DonutChart({ data, size, strokeWidth, theme }) {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const center = size / 2;
+  const total = data.reduce((sum, d) => sum + d.value, 0) || 1;
+
+  let accumulated = 0;
+  const segments = data.map(d => {
+    const pct = d.value / total;
+    const offset = circumference * (1 - pct);
+    const rotation = accumulated * 360 - 90;
+    accumulated += pct;
+    return { ...d, offset, rotation, pct };
+  });
+
+  return (
+    <View style={{ alignItems: 'center' }}>
+      <View style={{ width: size, height: size }}>
+        <Svg width={size} height={size}>
+          {/* Background circle */}
+          <Circle cx={center} cy={center} r={radius} stroke={theme.border} strokeWidth={strokeWidth} fill="none" />
+          {/* Data segments */}
+          {segments.map((seg, i) => (
+            <Circle
+              key={i}
+              cx={center} cy={center} r={radius}
+              stroke={seg.color}
+              strokeWidth={strokeWidth}
+              fill="none"
+              strokeDasharray={`${circumference}`}
+              strokeDashoffset={seg.offset}
+              strokeLinecap="round"
+              transform={`rotate(${seg.rotation}, ${center}, ${center})`}
+            />
+          ))}
+        </Svg>
+        {/* Center text */}
+        <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ fontSize: 22, fontWeight: '800', color: theme.text }}>{data[0]?.value || 0}%</Text>
+          <Text style={{ fontSize: 11, color: theme.textSecondary, marginTop: 2 }}>{data[0]?.label || ''}</Text>
+        </View>
+      </View>
+      {/* Legend */}
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', marginTop: 14, gap: 14 }}>
+        {data.map((d, i) => (
+          <View key={i} style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: d.color, marginRight: 6 }} />
+            <Text style={{ color: theme.textSecondary, fontSize: 12 }}>{d.label} {d.value}%</Text>
+          </View>
+        ))}
+      </View>
+    </View>
+  );
+}
 
 function StatCard({ icon, label, value, subtitle, color, theme }) {
   return (
@@ -50,12 +106,6 @@ export default function DashboardScreen({ navigation }) {
   const ud = data?.user_data || {}; const trends = data?.pest_trends || { months: [], values: [] };
   const health = data?.health_distribution || {}; const dets = data?.recent_detections || [];
   const cc = { backgroundGradientFrom: theme.card, backgroundGradientTo: theme.card, color: (o=1) => theme.primary + Math.round(o*255).toString(16).padStart(2,'0'), labelColor: () => theme.textSecondary, decimalCount: 0, propsForDots: { r:'5', strokeWidth:'2', stroke: theme.primary } };
-  const pie = [
-    { name: t('dashboard.healthy'), population: health.healthy||0, color: '#10b981', legendFontColor: theme.textSecondary, legendFontSize: 12 },
-    { name: t('dashboard.pestDamage'), population: health.pest_damage||0, color: '#f59e0b', legendFontColor: theme.textSecondary, legendFontSize: 12 },
-    { name: t('dashboard.disease'), population: health.disease||0, color: '#ef4444', legendFontColor: theme.textSecondary, legendFontSize: 12 },
-    { name: t('dashboard.critical'), population: health.critical||0, color: '#8b5cf6', legendFontColor: theme.textSecondary, legendFontSize: 12 },
-  ];
   const sevColor = sv => ({ Healthy: theme.success, High: theme.danger, Severe: theme.danger, Moderate: theme.warning }[sv] || theme.info);
 
   return (
@@ -72,9 +122,22 @@ export default function DashboardScreen({ navigation }) {
       </View>
       {data?.weather && <View style={[s.wCard, { backgroundColor: theme.card, borderColor: theme.border }]}><Ionicons name="sunny" size={24} color="#f59e0b" /><View style={{ marginLeft: 12 }}><Text style={[s.wTemp, { color: theme.text }]}>{data.weather.temperature}°C - {data.weather.condition}</Text><Text style={{ color: theme.textSecondary, fontSize: 13 }}>Humidity: {data.weather.humidity}%</Text></View></View>}
       {trends.values.length > 0 && <View style={[s.section, { backgroundColor: theme.card, borderColor: theme.border }]}><Text style={[s.secTitle, { color: theme.text }]}>{t('dashboard.pestTrends')}</Text><LineChart data={{ labels: trends.months, datasets: [{ data: trends.values }] }} width={W-56} height={200} chartConfig={cc} bezier style={{ borderRadius: 12, marginTop: 8 }} /></View>}
-      <View style={[s.section, { backgroundColor: theme.card, borderColor: theme.border }]}><Text style={[s.secTitle, { color: theme.text }]}>{t('dashboard.plantHealthDist')}</Text><PieChart data={pie} width={W-56} height={200} chartConfig={cc} accessor="population" backgroundColor="transparent" paddingLeft="15" /></View>
       <View style={[s.section, { backgroundColor: theme.card, borderColor: theme.border }]}>
-        <View style={{ flexDirection:'row', justifyContent:'space-between', alignItems:'center', marginBottom: 8 }}><Text style={[s.secTitle, { color: theme.text }]}>{t('dashboard.recentDetections')}</Text><TouchableOpacity onPress={() => navigation.navigate('History')}><Text style={{ color: theme.primary, fontWeight:'600' }}>{t('dashboard.viewAll')}</Text></TouchableOpacity></View>
+        <Text style={[s.secTitle, { color: theme.text }]}>{t('dashboard.plantHealthDist')}</Text>
+        <DonutChart
+          size={180}
+          strokeWidth={24}
+          theme={theme}
+          data={[
+            { label: t('dashboard.healthy'), value: health.healthy||0, color: '#10b981' },
+            { label: t('dashboard.pestDamage'), value: health.pest_damage||0, color: '#f59e0b' },
+            { label: t('dashboard.disease'), value: health.disease||0, color: '#ef4444' },
+            { label: t('dashboard.critical'), value: health.critical||0, color: '#8b5cf6' },
+          ]}
+        />
+      </View>
+      <View style={[s.section, { backgroundColor: theme.card, borderColor: theme.border }]}>
+        <View style={{ flexDirection:'row', justifyContent:'space-between', alignItems:'center', marginBottom: 8 }}><Text style={[s.secTitle, { color: theme.text }]}>{t('dashboard.recentDetections')}</Text><TouchableOpacity onPress={() => navigation.getParent().navigate('History')}><Text style={{ color: theme.primary, fontWeight:'600' }}>{t('dashboard.viewAll')}</Text></TouchableOpacity></View>
         {dets.length === 0 ? <Text style={{ color: theme.textSecondary, textAlign: 'center', paddingVertical: 20 }}>No detections yet. Scan a plant to get started!</Text> : null}
         {dets.map((d,i) => <View key={i} style={[s.detRow, { borderBottomColor: theme.border }]}><View style={[s.dot, { backgroundColor: sevColor(d.severity) }]} /><View style={{ flex:1 }}><Text style={[s.detPest, { color: theme.text }]}>{d.pest}</Text><Text style={{ color: theme.textSecondary, fontSize: 12 }}>{d.crop} - {d.field}</Text></View><View style={{ alignItems:'flex-end' }}><Text style={[s.detPct, { color: theme.text }]}>{d.percentage}%</Text><Text style={{ color: theme.textSecondary, fontSize: 11 }}>{d.date}</Text></View></View>)}
       </View>

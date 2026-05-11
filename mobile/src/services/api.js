@@ -1,7 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Change this to your computer's IP when testing on a physical device
-const BASE_URL = 'http://172.26.97.46:5001';
+//  computer's IP when testing on a physical device     //ipconfig getifaddr en0
+
+const BASE_URL = 'http://10.7.217.140:5002';
 
 class ApiService {
   async getToken() { return await AsyncStorage.getItem('token'); }
@@ -58,6 +59,9 @@ class ApiService {
   async getTranslations(lang) { return await this.request(`/api/translations/${lang}`); }
   async exportScans() { return await this.request('/api/export/scans'); }
   async exportProfile() { return await this.request('/api/export/profile'); }
+  async chat(message) { return await this.request('/api/chat', { method: 'POST', body: JSON.stringify({ message }) }); }
+  async getPestLibrary() { return await this.request('/api/pest_library'); }
+  getImageUrl(imagePath) { return imagePath ? `${BASE_URL}/api/uploads/${imagePath}` : null; }
 }
 
 export default new ApiService();

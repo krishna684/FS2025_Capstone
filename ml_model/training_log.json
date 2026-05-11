@@ -1,0 +1,164 @@
+{
+  "device": "mps",
+  "num_classes": 18,
+  "classes": [
+    "Healthy",
+    "Aphids",
+    "Whiteflies",
+    "Spider_Mites",
+    "Caterpillars",
+    "Mealybugs",
+    "Thrips",
+    "Scale_Insects",
+    "Leaf_Miners",
+    "Japanese_Beetles",
+    "Fungus_Gnats",
+    "Tomato_Hornworm",
+    "Colorado_Potato_Beetle",
+    "Flea_Beetles",
+    "Sawflies",
+    "Stink_Bugs",
+    "Leaf_Disease",
+    "Powdery_Mildew"
+  ],
+  "best_accuracy": 88.318863456985,
+  "total_train_images": 14394,
+  "total_val_images": 2534,
+  "results": [
+    {
+      "phase": 1,
+      "epoch": 1,
+      "train_loss": 1.4875,
+      "val_loss": 1.0154,
+      "val_acc": 68.98,
+      "lr": 0.001,
+      "time": 121.1
+    },
+    {
+      "phase": 1,
+      "epoch": 2,
+      "train_loss": 1.1134,
+      "val_loss": 0.8899,
+      "val_acc": 72.18,
+      "lr": 0.001,
+      "time": 110.1
+    },
+    {
+      "phase": 1,
+      "epoch": 3,
+      "train_loss": 1.0217,
+      "val_loss": 0.8125,
+      "val_acc": 73.76,
+      "lr": 0.001,
+      "time": 108.9
+    },
+    {
+      "phase": 1,
+      "epoch": 4,
+      "train_loss": 0.9687,
+      "val_loss": 0.8026,
+      "val_acc": 74.07,
+      "lr": 0.001,
+      "time": 108.8
+    },
+    {
+      "phase": 1,
+      "epoch": 5,
+      "train_loss": 0.9445,
+      "val_loss": 0.7287,
+      "val_acc": 76.36,
+      "lr": 0.001,
+      "time": 109.5
+    },
+    {
+      "phase": 2,
+      "epoch": 1,
+      "train_loss": 0.7733,
+      "val_loss": 0.5763,
+      "val_acc": 81.97,
+      "lr": 0.0001,
+      "time": 152.7
+    },
+    {
+      "phase": 2,
+      "epoch": 2,
+      "train_loss": 0.6354,
+      "val_loss": 0.5123,
+      "val_acc": 84.21,
+      "lr": 0.0001,
+      "time": 149.2
+    },
+    {
+      "phase": 2,
+      "epoch": 3,
+      "train_loss": 0.5541,
+      "val_loss": 0.4782,
+      "val_acc": 85.67,
+      "lr": 0.0001,
+      "time": 149.4
+    },
+    {
+      "phase": 2,
+      "epoch": 4,
+      "train_loss": 0.4882,
+      "val_loss": 0.4492,
+      "val_acc": 86.42,
+      "lr": 0.0001,
+      "time": 150.2
+    },
+    {
+      "phase": 2,
+      "epoch": 5,
+      "train_loss": 0.4312,
+      "val_loss": 0.4408,
+      "val_acc": 86.7,
+      "lr": 0.0001,
+      "time": 149.4
+    },
+    {
+      "phase": 2,
+      "epoch": 6,
+      "train_loss": 0.394,
+      "val_loss": 0.4275,
+      "val_acc": 87.53,
+      "lr": 0.0001,
+      "time": 149.4
+    },
+    {
+      "phase": 2,
+      "epoch": 7,
+      "train_loss": 0.3682,
+      "val_loss": 0.4134,
+      "val_acc": 87.92,
+      "lr": 0.0001,
+      "time": 148.9
+    },
+    {
+      "phase": 2,
+      "epoch": 8,
+      "train_loss": 0.33,
+      "val_loss": 0.411,
+      "val_acc": 88.32,
+      "lr": 0.0001,
+      "time": 149.2
+    },
+    {
+      "phase": 2,
+      "epoch": 9,
+      "train_loss": 0.3114,
+      "val_loss": 0.4056,
+      "val_acc": 88.16,
+      "lr": 0.0001,
+      "time": 149.2
+    },
+    {
+      "phase": 2,
+      "epoch": 10,
+      "train_loss": 0.2906,
+      "val_loss": 0.4058,
+      "val_acc": 88.32,
+      "lr": 0.0001,
+      "time": 149.1
+    }
+  ]
+}

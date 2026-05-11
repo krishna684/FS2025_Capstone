@@ -40,6 +40,12 @@
                 <a href="{{ url_for('history') }}" class="nav-item {% if request.endpoint == 'history' %}active{% endif %}">
                     <i class="fas fa-history"></i> {{ t.nav.history }}
                 </a>
+                <a href="{{ url_for('chat_page') }}" class="nav-item {% if request.endpoint == 'chat_page' %}active{% endif %}">
+                    <i class="fas fa-comments"></i> Chat
+                </a>
+                <a href="{{ url_for('pest_library') }}" class="nav-item {% if request.endpoint == 'pest_library' %}active{% endif %}">
+                    <i class="fas fa-book"></i> Pests
+                </a>
                 <a href="{{ url_for('about') }}" class="nav-item {% if request.endpoint == 'about' %}active{% endif %}">
                     <i class="fas fa-info-circle"></i> {{ t.nav.about }}
                 </a>

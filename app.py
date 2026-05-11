@@ -527,6 +527,7 @@ def analyze_symptoms():
         db.session.commit()
 
         # Store for results page
+        analysis_result['scan_id'] = scan.id
         session['last_analysis'] = analysis_result
 
         return jsonify({'success': True, 'redirect': url_for('results')})
@@ -624,7 +625,18 @@ def analyze_text_symptoms(symptoms, plant_type=''):
 @login_required
 def history():
     db_scans = Scan.query.filter_by(user_id=current_user.id).order_by(Scan.created_at.desc()).all()
-    history_data = [scan.to_dict() for scan in db_scans]
+    history_data = []
+    for scan in db_scans:
+        s_dict = scan.to_dict()
+        s_dict['plant'] = scan.crop_type or 'Unknown Plant'
+        s_dict['pest'] = scan.pest_identified or 'None'
+        if scan.created_at:
+            s_dict['date'] = scan.created_at.strftime('%Y-%m-%d')
+            s_dict['time'] = scan.created_at.strftime('%H:%M')
+        else:
+            s_dict['date'] = ''
+            s_dict['time'] = ''
+        history_data.append(s_dict)
 
     total = len(history_data)
     pests = sum(1 for h in history_data if h.get('severity') not in ['Healthy', None])

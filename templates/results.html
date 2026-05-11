@@ -374,7 +374,7 @@
 </style>
 
 <script>
-let currentScanId = null;
+let currentScanId = {{ result.scan_id if result.scan_id else 'null' }};
 
 // Tab functionality
 document.querySelectorAll('.tab-button').forEach(button => {

@@ -44,6 +44,7 @@ DerivedData/
 
 # PyTorch model cache
 *.pth
+!ml_model/agbot_model.pth
 ml_model/__pycache__/
 
 # Large files

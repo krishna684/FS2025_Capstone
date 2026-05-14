@@ -945,4 +945,5 @@ if __name__ == '__main__':
     print("  Running on http://0.0.0.0:5002")
     print("  AI Model: EfficientNetB0 Fine-tuned (88.3%)")
     print("  Pest Database: 18 classes\n")
-    app.run(debug=True, host='0.0.0.0', port=5002)
+    port = int(os.environ.get('PORT', 5002))
+    app.run(debug=False, host='0.0.0.0', port=port)

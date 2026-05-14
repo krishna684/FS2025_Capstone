@@ -1,10 +1,9 @@
 """
-AGBOT REST API Backend
-Pure JSON API for the React Native and iOS mobile apps.
-Integrates real PyTorch EfficientNetB0 model for pest detection.
+AGBOT Mobile API Blueprint
+JSON API for the React Native and iOS mobile apps.
+Registered on the main Flask app in app.py.
 """
-from flask import Flask, jsonify, request
-from flask_cors import CORS
+from flask import Blueprint, jsonify, request, send_from_directory
 from datetime import datetime, timedelta
 import base64
 import io
@@ -24,17 +23,9 @@ from model import get_model
 from knowledge_base import get_pest_info, get_pest_info_by_name, get_all_pest_names, _load as _load_pest_data_raw
 from questionnaire import load_questionnaire, analyze_answers
 
-app = Flask(__name__)
-app.secret_key = 'your-secret-key-here'
-CORS(app)
+bp = Blueprint('mobile_api', __name__)
 
-# Database configuration
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///agbot.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 JWT_SECRET = 'your-jwt-secret-key'
-
-# Initialize extensions
-db.init_app(app)
 
 # Load translations
 translations = {}
@@ -49,7 +40,6 @@ for lang in ['en', 'es', 'hi', 'sw']:
 UPLOAD_FOLDER = 'static/uploads'
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'tiff'}
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 def get_user_dashboard_data(user_id):
     """Build real dashboard data from the database."""
@@ -129,25 +119,34 @@ def generate_token(user_id):
 
 
 def token_required(f):
+    """Hybrid auth: accepts JWT Bearer (mobile) or Flask-Login session (web)."""
     @wraps(f)
     def decorated(*args, **kwargs):
-        token = None
+        current_user = None
+
+        # Try JWT first (mobile clients)
         auth_header = request.headers.get('Authorization', '')
         if auth_header.startswith('Bearer '):
             token = auth_header.split(' ')[1]
+            try:
+                data = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
+                current_user = User.query.get(data['user_id'])
+            except jwt.ExpiredSignatureError:
+                return jsonify({'error': 'Token has expired'}), 401
+            except jwt.InvalidTokenError:
+                return jsonify({'error': 'Invalid token'}), 401
 
-        if not token:
-            return jsonify({'error': 'Token is missing'}), 401
+        # Fall back to Flask-Login session (web browser)
+        if current_user is None:
+            try:
+                from flask_login import current_user as session_user
+                if session_user.is_authenticated:
+                    current_user = session_user._get_current_object()
+            except Exception:
+                pass
 
-        try:
-            data = jwt.decode(token, JWT_SECRET, algorithms=['HS256'])
-            current_user = User.query.get(data['user_id'])
-            if not current_user:
-                return jsonify({'error': 'User not found'}), 401
-        except jwt.ExpiredSignatureError:
-            return jsonify({'error': 'Token has expired'}), 401
-        except jwt.InvalidTokenError:
-            return jsonify({'error': 'Invalid token'}), 401
+        if current_user is None:
+            return jsonify({'error': 'Authentication required'}), 401
 
         return f(current_user, *args, **kwargs)
     return decorated
@@ -159,7 +158,7 @@ def allowed_file(filename):
 
 # ─── Auth Routes ────────────────────────────────────────────────────────────────
 
-@app.route('/api/auth/login', methods=['POST'])
+@bp.route('/api/auth/login', methods=['POST'])
 def api_login():
     data = request.get_json()
     email = data.get('email', '')
@@ -178,7 +177,7 @@ def api_login():
     return jsonify({'error': 'Invalid email/phone or password'}), 401
 
 
-@app.route('/api/auth/register', methods=['POST'])
+@bp.route('/api/auth/register', methods=['POST'])
 def api_register():
     data = request.get_json()
     name = data.get('name', '')
@@ -214,7 +213,7 @@ def api_register():
     }), 201
 
 
-@app.route('/api/auth/me', methods=['GET'])
+@bp.route('/api/auth/me', methods=['GET'])
 @token_required
 def api_me(current_user):
     return jsonify({
@@ -236,7 +235,7 @@ def api_me(current_user):
 
 # ─── Dashboard ──────────────────────────────────────────────────────────────────
 
-@app.route('/api/dashboard', methods=['GET'])
+@bp.route('/api/dashboard', methods=['GET'])
 @token_required
 def api_dashboard(current_user):
     user_data, recent_detections, pest_trends, health_distribution = get_user_dashboard_data(current_user.id)
@@ -256,7 +255,7 @@ def api_dashboard(current_user):
 
 # ─── Scan / Analyze (REAL AI MODEL) ──────────────────────────────────────────
 
-@app.route('/api/analyze', methods=['POST'])
+@bp.route('/api/analyze', methods=['POST'])
 @token_required
 def api_analyze(current_user):
     try:
@@ -268,7 +267,7 @@ def api_analyze(current_user):
                 filename = secure_filename(file.filename)
                 timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
                 filename = f"{timestamp}_{filename}"
-                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                filepath = os.path.join(UPLOAD_FOLDER, filename)
                 file.save(filepath)
                 with open(filepath, 'rb') as f:
                     image_bytes = f.read()
@@ -296,7 +295,7 @@ def api_analyze(current_user):
             from PIL import Image as PILImage
             img = PILImage.open(io.BytesIO(image_bytes)).convert('RGB')
             saved_filename = f"{datetime.now().strftime('%Y%m%d_%H%M%S')}_scan.jpg"
-            img.save(os.path.join(app.config['UPLOAD_FOLDER'], saved_filename), 'JPEG', quality=85)
+            img.save(os.path.join(UPLOAD_FOLDER, saved_filename), 'JPEG', quality=85)
 
         # Save to DB
         scan = Scan(
@@ -320,7 +319,7 @@ def api_analyze(current_user):
         return jsonify({'error': str(e)}), 500
 
 
-@app.route('/api/analyze_symptoms', methods=['POST'])
+@bp.route('/api/analyze_symptoms', methods=['POST'])
 @token_required
 def api_analyze_symptoms(current_user):
     try:
@@ -351,7 +350,7 @@ def api_analyze_symptoms(current_user):
 
 # ─── History ────────────────────────────────────────────────────────────────────
 
-@app.route('/api/history', methods=['GET'])
+@bp.route('/api/history', methods=['GET'])
 @token_required
 def api_history(current_user):
     db_scans = Scan.query.filter_by(user_id=current_user.id).order_by(Scan.created_at.desc()).all()
@@ -370,7 +369,7 @@ def api_history(current_user):
 
 # ─── Profile / Settings ────────────────────────────────────────────────────────
 
-@app.route('/api/profile', methods=['PUT'])
+@bp.route('/api/profile', methods=['PUT'])
 @token_required
 def api_update_profile(current_user):
     data = request.get_json()
@@ -384,7 +383,7 @@ def api_update_profile(current_user):
     return jsonify({'message': 'Profile updated successfully'})
 
 
-@app.route('/api/preferences', methods=['PUT'])
+@bp.route('/api/preferences', methods=['PUT'])
 @token_required
 def api_update_preferences(current_user):
     data = request.get_json()
@@ -395,7 +394,7 @@ def api_update_preferences(current_user):
     return jsonify({'message': 'Preferences updated successfully'})
 
 
-@app.route('/api/security', methods=['PUT'])
+@bp.route('/api/security', methods=['PUT'])
 @token_required
 def api_update_security(current_user):
     data = request.get_json()
@@ -417,7 +416,7 @@ def api_update_security(current_user):
     return jsonify({'message': 'Password updated successfully'})
 
 
-@app.route('/api/update_theme', methods=['POST'])
+@bp.route('/api/update_theme', methods=['POST'])
 @token_required
 def api_update_theme(current_user):
     data = request.get_json()
@@ -426,7 +425,7 @@ def api_update_theme(current_user):
     return jsonify({'message': 'Theme updated'})
 
 
-@app.route('/api/update_language', methods=['POST'])
+@bp.route('/api/update_language', methods=['POST'])
 @token_required
 def api_update_language(current_user):
     data = request.get_json()
@@ -437,7 +436,7 @@ def api_update_language(current_user):
 
 # ─── Feedback & Pests ──────────────────────────────────────────────────────────
 
-@app.route('/api/feedback', methods=['POST'])
+@bp.route('/api/feedback', methods=['POST'])
 @token_required
 def api_feedback(current_user):
     data = request.get_json()
@@ -453,7 +452,7 @@ def api_feedback(current_user):
     return jsonify({'message': 'Feedback saved successfully'})
 
 
-@app.route('/api/pests', methods=['GET'])
+@bp.route('/api/pests', methods=['GET'])
 def api_pests():
     lang = request.args.get('lang', 'en')
     pests = PestDatabase.query.all()
@@ -462,14 +461,14 @@ def api_pests():
 
 # ─── Export ─────────────────────────────────────────────────────────────────────
 
-@app.route('/api/export/scans', methods=['GET'])
+@bp.route('/api/export/scans', methods=['GET'])
 @token_required
 def api_export_scans(current_user):
     scans = Scan.query.filter_by(user_id=current_user.id).order_by(Scan.created_at.desc()).all()
     return jsonify([scan.to_dict() for scan in scans])
 
 
-@app.route('/api/export/profile', methods=['GET'])
+@bp.route('/api/export/profile', methods=['GET'])
 @token_required
 def api_export_profile(current_user):
     return jsonify({
@@ -481,7 +480,7 @@ def api_export_profile(current_user):
 
 # ─── Stats ──────────────────────────────────────────────────────────────────────
 
-@app.route('/api/stats', methods=['GET'])
+@bp.route('/api/stats', methods=['GET'])
 @token_required
 def api_stats(current_user):
     user_data, recent_detections, pest_trends, _ = get_user_dashboard_data(current_user.id)
@@ -497,28 +496,11 @@ def api_stats(current_user):
 
 # ─── Translations ──────────────────────────────────────────────────────────────
 
-@app.route('/api/translations/<lang>', methods=['GET'])
+@bp.route('/api/translations/<lang>', methods=['GET'])
 def api_translations(lang):
     if lang not in translations:
         lang = 'en'
     return jsonify(translations[lang])
-
-
-# ─── Root Route ────────────────────────────────────────────────────────────────
-
-@app.route('/')
-def index():
-    return jsonify({
-        'service': 'AGBOT API',
-        'status': 'running',
-        'ai_model': 'EfficientNetB0 Fine-tuned (88.3% accuracy)',
-        'pest_database': '18 classes (15 pests + 2 diseases + healthy)',
-        'endpoints': [
-            '/api/auth/login', '/api/auth/register', '/api/dashboard',
-            '/api/analyze', '/api/analyze_symptoms', '/api/history',
-            '/api/chat', '/api/questionnaire/questions', '/api/health'
-        ]
-    })
 
 
 # ─── Real AI Analysis Helpers ──────────────────────────────────────────────────
@@ -753,7 +735,7 @@ def analyze_text_symptoms(symptoms, plant_type=''):
 
 # ─── Chat Endpoint ────────────────────────────────────────────────────────────
 
-@app.route('/api/chat', methods=['POST'])
+@bp.route('/api/chat', methods=['POST'])
 @token_required
 def api_chat(current_user):
     data = request.get_json()
@@ -791,13 +773,13 @@ def api_chat(current_user):
 
 # ─── Questionnaire Endpoints ──────────────────────────────────────────────────
 
-@app.route('/api/questionnaire/questions', methods=['GET'])
+@bp.route('/api/questionnaire/questions', methods=['GET'])
 def api_questionnaire_questions():
     data = load_questionnaire()
     return jsonify(data.get('questions', []))
 
 
-@app.route('/api/questionnaire/analyze', methods=['POST'])
+@bp.route('/api/questionnaire/analyze', methods=['POST'])
 @token_required
 def api_questionnaire_analyze(current_user):
     answers = request.get_json()
@@ -857,16 +839,16 @@ def get_weather(location=None):
 
 # ─── Image Serving ─────────────────────────────────────────────────────────────
 
-@app.route('/api/uploads/<filename>', methods=['GET'])
+@bp.route('/api/uploads/<filename>', methods=['GET'])
 def serve_upload(filename):
     """Serve uploaded scan images."""
     from flask import send_from_directory
-    return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+    return send_from_directory(UPLOAD_FOLDER, filename)
 
 
 # ─── Pest Library ─────────────────────────────────────────────────────────────
 
-@app.route('/api/pest_library', methods=['GET'])
+@bp.route('/api/pest_library', methods=['GET'])
 def api_pest_library():
     """Return full pest knowledge base for the encyclopedia."""
     pest_data = _load_pest_data_raw()
@@ -899,35 +881,10 @@ def api_pest_library():
 
 # ─── Health Check ──────────────────────────────────────────────────────────────
 
-@app.route('/api/health', methods=['GET'])
+@bp.route('/api/health', methods=['GET'])
 def api_health():
     return jsonify({'status': 'ok', 'service': 'agbot-api', 'ai_model': 'EfficientNetB0 Fine-tuned'})
 
 
-if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
-
-        if PestDatabase.query.count() == 0:
-            pests = [
-                PestDatabase(common_name='Japanese Beetle', scientific_name='Popillia japonica', category='insect', name_es='Escarabajo Japonés', name_hi='जापानी बीटल', name_sw='Mdudu wa Kijapani'),
-                PestDatabase(common_name='Aphids', scientific_name='Aphidoidea', category='insect', name_es='Pulgones', name_hi='एफिड्स', name_sw='Dudu wa Majani'),
-                PestDatabase(common_name='Spider Mites', scientific_name='Tetranychidae', category='insect', name_es='Ácaros', name_hi='मकड़ी के कण', name_sw='Panya wa Utando'),
-                PestDatabase(common_name='Cabbage Worm', scientific_name='Pieris rapae', category='insect', name_es='Gusano de la col', name_hi='पत्ता गोभी का कीड़ा', name_sw='Funza la Kabichi'),
-                PestDatabase(common_name='Whiteflies', scientific_name='Aleyrodidae', category='insect', name_es='Moscas blancas', name_hi='सफेद मक्खियाँ', name_sw='Nzi Weupe'),
-            ]
-            db.session.add_all(pests)
-            db.session.commit()
-            print("Database initialized with sample pests")
-
-    # Pre-load the AI model at startup
-    print("\n  Loading AI Model...")
-    get_model()
-
-    print("\n  AGBOT API Server (AI-Powered)")
-    print("  ─────────────────────────────")
-    print("  Running on http://0.0.0.0:5001")
-    print("  AI Model: EfficientNetB0 (PyTorch)")
-    print("  Pest Database: 15 species")
-    print("  Mobile app should connect to your computer's IP address\n")
-    app.run(debug=True, host='0.0.0.0', port=5001)
+# NOTE: This module is a Blueprint registered on app.py's Flask app.
+# Run `python app.py` to start the unified server.

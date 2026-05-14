@@ -1,6 +1,9 @@
-from flask import Flask, render_template, jsonify, request, redirect, url_for, session, flash
+from flask import Flask, render_template, jsonify, request, redirect, url_for, session, flash, send_from_directory
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+from flask_cors import CORS
 from datetime import datetime, timedelta
+from functools import wraps
+import jwt
 import random
 import base64
 import io
@@ -19,6 +22,7 @@ from knowledge_base import get_pest_info_by_name, get_all_pest_names, _load as _
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-here'  # Change this in production
+CORS(app)
 
 # Database configuration
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///agbot.db'
@@ -27,9 +31,13 @@ app.config['JWT_SECRET_KEY'] = 'your-jwt-secret-key'  # Change in production
 
 # Initialize extensions
 db.init_app(app)
+CORS(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
 login_manager.login_view = 'login'
+
+# Mobile API JWT config
+JWT_SECRET = 'your-jwt-secret-key'  # Change in production
 
 # Load translations
 translations = {}
@@ -268,38 +276,7 @@ def register():
 
     return render_template('register.html')
 
-@app.route('/api/chat', methods=['POST'])
-@login_required
-def web_chat():
-    data = request.get_json()
-    message = data.get('message', '').strip()
-    if not message:
-        return jsonify({'reply': 'Please type a message.'}), 400
-
-    msg_lower = message.lower()
-    all_names = get_all_pest_names()
-    matched_pest = None
-    for name in all_names:
-        if name.lower() in msg_lower:
-            matched_pest = get_pest_info_by_name(name)
-            break
-
-    if matched_pest:
-        if any(w in msg_lower for w in ['remedy', 'treat', 'how to kill', 'get rid', 'remove', 'fix', 'cure']):
-            items = matched_pest.get('remedies', [])[:4]
-            reply = f"For {matched_pest['name']}, you should: " + "; ".join(items) + "."
-        elif any(w in msg_lower for w in ['symptom', 'sign', 'look like', 'identify', 'detect']):
-            items = matched_pest.get('symptoms', [])[:4]
-            reply = f"Signs of {matched_pest['name']}: " + "; ".join(items) + "."
-        elif any(w in msg_lower for w in ['prevent', 'protect', 'avoid', 'precaution']):
-            items = matched_pest.get('precautions', [])[:4]
-            reply = f"To prevent {matched_pest['name']}: " + "; ".join(items) + "."
-        else:
-            reply = f"{matched_pest['name']} ({matched_pest.get('scientific_name', '')}): {matched_pest.get('description', '')} Severity: {matched_pest.get('severity_level', 'Unknown')}. Ask me about remedies, symptoms, or prevention!"
-    else:
-        reply = "I'm AGBOT, your agricultural pest detection assistant! I can help with: " + ", ".join(all_names) + ". Ask me about any of these pests!"
-
-    return jsonify({'reply': reply})
+# /api/chat moved to api.py blueprint (hybrid auth: works for web session + mobile JWT)
 
 @app.route('/onboarding')
 @login_required
@@ -359,23 +336,7 @@ def update_preferences():
     flash('Preferences updated successfully', 'success')
     return redirect(url_for('settings'))
 
-@app.route('/api/update_theme', methods=['POST'])
-@login_required
-def update_theme():
-    data = request.get_json()
-    theme = data.get('theme', 'light')
-    current_user.theme = theme
-    db.session.commit()
-    return jsonify({'message': 'Theme updated successfully'}), 200
-
-@app.route('/api/update_language', methods=['POST'])
-@login_required
-def update_language():
-    data = request.get_json()
-    language = data.get('language', 'en')
-    current_user.language = language
-    db.session.commit()
-    return jsonify({'message': 'Language updated successfully'}), 200
+# /api/update_theme and /api/update_language moved to api.py blueprint (hybrid auth)
 
 @app.route('/update_notifications', methods=['POST'])
 @login_required
@@ -421,58 +382,7 @@ def oauth_login(provider):
     flash(f'{provider.capitalize()} OAuth not yet configured', 'warning')
     return redirect(url_for('login'))
 
-# API endpoint for feedback
-@app.route('/api/feedback', methods=['POST'])
-@login_required
-def submit_feedback():
-    data = request.get_json()
-
-    feedback = Feedback(
-        user_id=current_user.id,
-        scan_id=data.get('scan_id'),
-        is_correct=data.get('is_correct'),
-        actual_pest_name=data.get('actual_pest_name'),
-        notes=data.get('notes')
-    )
-
-    db.session.add(feedback)
-    db.session.commit()
-
-    return jsonify({'message': 'Feedback saved successfully'}), 200
-
-# Get common pests for feedback dropdown
-@app.route('/api/pests')
-def get_pests():
-    lang = request.args.get('lang', 'en')
-    pests = PestDatabase.query.all()
-    return jsonify([pest.to_dict(lang) for pest in pests])
-
-# Export API endpoints
-@app.route('/api/export/scans')
-@login_required
-def export_scans():
-    scans = Scan.query.filter_by(user_id=current_user.id).order_by(Scan.created_at.desc()).all()
-    scans_data = [scan.to_dict() for scan in scans]
-
-    export_format = request.args.get('format', 'json')
-
-    if export_format == 'json':
-        return jsonify(scans_data)
-    elif export_format == 'csv':
-        # For CSV, we'll return JSON and let the frontend handle it
-        return jsonify(scans_data)
-    else:
-        return jsonify({'error': 'Unsupported format'}), 400
-
-@app.route('/api/export/profile')
-@login_required
-def export_profile():
-    profile_data = {
-        'user': current_user.to_dict(),
-        'total_scans': Scan.query.filter_by(user_id=current_user.id).count(),
-        'exported_at': datetime.utcnow().isoformat()
-    }
-    return jsonify(profile_data)
+# /api/feedback, /api/pests, /api/export/scans, /api/export/profile moved to api.py blueprint
 
 @app.route('/')
 @login_required
@@ -869,19 +779,13 @@ def run_pest_detection(image_bytes):
         ]
     }
 
-@app.route('/api/stats')
-@login_required
-def get_stats():
-    """API endpoint for dashboard statistics"""
-    ud, detections, trends, _ = get_web_dashboard_data(current_user.id)
-    return jsonify({
-        'total_scans': ud['total_scans'],
-        'healthy_percentage': ud['healthy_percentage'],
-        'pests_detected': ud['pests_detected'],
-        'ai_accuracy': ud['ai_accuracy'],
-        'recent_detections': detections[:5],
-        'pest_trends': trends
-    })
+# /api/stats moved to api.py blueprint (hybrid auth)
+
+
+# Register the mobile API blueprint (provides /api/auth/*, /api/dashboard, /api/analyze, etc.)
+from api import bp as mobile_api_bp
+app.register_blueprint(mobile_api_bp)
+
 
 if __name__ == '__main__':
     # Initialize database

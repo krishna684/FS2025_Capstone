@@ -1,8 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-//  computer's IP when testing on a physical device     //ipconfig getifaddr en0
-
-const BASE_URL = 'http://10.7.217.140:5002';
+// Production (Railway) — used for App Store builds and physical device testing
+// For local Flask testing, swap to: 'http://<your-mac-ip>:5002' (run `ipconfig getifaddr en0`)
+const BASE_URL = 'https://fs2025capstone-production.up.railway.app';
 
 class ApiService {
   async getToken() { return await AsyncStorage.getItem('token'); }
